@@ -1,0 +1,863 @@
+class TextLibrary {
+    constructor() {
+        this.currentText = '';
+        this.currentTitle = '';
+        this.library = this.loadLibrary();
+        this.wordLibrary = this.loadWordLibrary();
+        this.initializeElements();
+        this.bindEvents();
+        this.updateLibraryDisplay();
+        this.updateWordLibraryDisplay();
+    }
+
+    initializeElements() {
+        // ボタン
+        this.loadBtnInline = document.getElementById('loadBtnInline');
+        this.saveToLibraryBtn = document.getElementById('saveToLibraryBtn');
+        this.clearBtn = document.getElementById('clearBtn');
+        this.clearLibraryBtn = document.getElementById('clearLibraryBtn');
+        this.clearWordLibraryBtn = document.getElementById('clearWordLibraryBtn');
+        this.clearAllBtn = document.getElementById('clearAllBtn');
+        
+        // エリア
+        this.dropZone = document.getElementById('dropZone');
+        this.contentArea = document.getElementById('contentArea');
+        this.libraryArea = document.getElementById('libraryArea');
+        this.wordLibraryArea = document.getElementById('wordLibraryArea');
+        
+        // コンテンツ
+        this.documentTitle = document.getElementById('documentTitle');
+        this.textDisplay = document.getElementById('textDisplay');
+        this.libraryGrid = document.getElementById('libraryGrid');
+        this.wordLibraryGrid = document.getElementById('wordLibraryGrid');
+        
+        // 用語詳細
+        this.wordDetail = document.getElementById('wordDetail');
+        this.wordDetailTitle = document.getElementById('wordDetailTitle');
+        this.wordDetailContent = document.getElementById('wordDetailContent');
+        this.closeWordDetail = document.getElementById('closeWordDetail');
+        
+        // 検索
+        this.wordSearch = document.getElementById('wordSearch');
+        
+        // ファイル入力
+        this.fileInput = document.getElementById('fileInput');
+    }
+
+    bindEvents() {
+        // メインボタン
+        this.loadBtnInline.addEventListener('click', () => this.toggleDropZone());
+        
+        // ドラッグ&ドロップ
+        this.dropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
+        this.dropZone.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+        this.dropZone.addEventListener('drop', (e) => this.handleDrop(e));
+        this.dropZone.addEventListener('click', () => this.fileInput.click());
+        
+        // ファイル入力
+        this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+        
+        // コンテンツアクション
+        this.saveToLibraryBtn.addEventListener('click', () => this.saveToLibrary());
+        this.clearBtn.addEventListener('click', () => this.clearContent());
+        
+        // ライブラリ
+        this.clearLibraryBtn.addEventListener('click', () => this.clearLibrary());
+        this.clearWordLibraryBtn.addEventListener('click', () => this.clearWordLibrary());
+        this.clearAllBtn.addEventListener('click', () => this.clearAll());
+        
+        // ワード検索
+        this.wordSearch.addEventListener('input', () => this.searchWords());
+        
+        // 用語詳細
+        this.closeWordDetail.addEventListener('click', () => this.hideWordDetail());
+    }
+
+    toggleDropZone() {
+        this.dropZone.classList.toggle('hidden');
+        if (!this.dropZone.classList.contains('hidden')) {
+            this.dropZone.classList.add('fade-in');
+        }
+    }
+
+    handleDragOver(e) {
+        e.preventDefault();
+        this.dropZone.classList.add('dragover');
+    }
+
+    handleDragLeave(e) {
+        e.preventDefault();
+        this.dropZone.classList.remove('dragover');
+    }
+
+    handleDrop(e) {
+        e.preventDefault();
+        this.dropZone.classList.remove('dragover');
+        
+        const files = Array.from(e.dataTransfer.files);
+        this.processFiles(files);
+    }
+
+    handleFileSelect(e) {
+        const files = Array.from(e.target.files);
+        this.processFiles(files);
+    }
+
+    processFiles(files) {
+        const textFiles = files.filter(file => 
+            file.type === 'text/plain' || 
+            file.name.endsWith('.txt') || 
+            file.name.endsWith('.rtf')
+        );
+        
+        if (textFiles.length === 0) {
+            this.showMessage('テキストファイル（.txt, .rtf）を選択してください', 'error');
+            return;
+        }
+
+        // 最初のファイルのみを処理
+        const file = textFiles[0];
+        this.loadTextFile(file);
+    }
+
+    loadTextFile(file) {
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            let text = e.target.result;
+            
+            // RTFファイルの場合はプレーンテキストに変換
+            if (file.name.endsWith('.rtf')) {
+                text = this.convertRtfToText(text);
+            }
+            
+            this.currentText = this.formatText(text);
+            this.currentTitle = file.name.replace(/\.(txt|rtf)$/, '');
+            
+            this.displayContent();
+            this.dropZone.classList.add('hidden');
+            
+            // ボタンを有効化
+            this.saveToLibraryBtn.disabled = false;
+            this.clearBtn.disabled = false;
+            
+            this.showMessage(`ファイル「${this.currentTitle}」を読み込みました`, 'success');
+        };
+        
+        reader.onerror = () => {
+            this.showMessage('ファイルの読み込みに失敗しました', 'error');
+        };
+        
+        reader.readAsText(file, 'UTF-8');
+    }
+
+    convertRtfToText(rtf) {
+        // RTFからプレーンテキストへ変換
+        try {
+            let text = rtf;
+            
+            // BOMと文字コード処理
+            if (text.charCodeAt(0) === 0xFEFF) {
+                text = text.slice(1);
+            }
+            
+            // RTFヘッダーを検出
+            if (!text.match(/^\{\\rtf1/)) {
+                return text; // RTFでない場合はそのまま返す
+            }
+            
+            // テキスト部分を抽出（中括弧のグループを処理）
+            let result = '';
+            let braceLevel = 0;
+            let i = 0;
+            
+            while (i < text.length) {
+                const char = text[i];
+                
+                if (char === '{') {
+                    braceLevel++;
+                    // 制御ワードグループの開始をスキップ
+                    if (braceLevel === 1 && i + 1 < text.length && text[i + 1] === '\\') {
+                        // 次の対応する中括弧までスキップ
+                        let skipLevel = 1;
+                        i++;
+                        while (i < text.length && skipLevel > 0) {
+                            if (text[i] === '{') skipLevel++;
+                            else if (text[i] === '}') skipLevel--;
+                            i++;
+                        }
+                        braceLevel--;
+                        continue;
+                    }
+                } else if (char === '}') {
+                    braceLevel--;
+                    if (braceLevel < 0) braceLevel = 0;
+                } else if (braceLevel === 0 && char !== '\\') {
+                    // 通常のテキスト文字
+                    result += char;
+                } else if (char === '\\' && braceLevel === 0) {
+                    // 制御文字の処理
+                    let j = i + 1;
+                    let controlWord = '';
+                    
+                    while (j < text.length && /[a-zA-Z]/.test(text[j])) {
+                        controlWord += text[j];
+                        j++;
+                    }
+                    
+                    // 数値引数をスキップ
+                    while (j < text.length && /[0-9-]/.test(text[j])) {
+                        j++;
+                    }
+                    
+                    // スペースをスキップ
+                    if (j < text.length && text[j] === ' ') {
+                        j++;
+                    }
+                    
+                    switch (controlWord) {
+                        case 'par':
+                        case 'line':
+                            result += '\n';
+                            break;
+                        case 'tab':
+                            result += '\t';
+                            break;
+                        case 'ldblquote':
+                            result += '"';
+                            break;
+                        case 'rdblquote':
+                            result += '"';
+                            break;
+                        case 'lquote':
+                            result += "'";
+                            break;
+                        case 'rquote':
+                            result += "'";
+                            break;
+                        case 'emdash':
+                            result += '—';
+                            break;
+                        case 'endash':
+                            result += '–';
+                            break;
+                        case 'bullet':
+                            result += '•';
+                            break;
+                        // その他の制御文字は無視
+                    }
+                    
+                    i = j - 1;
+                }
+                
+                i++;
+            }
+            
+            // Unicode文字の処理（\uXXXX? 形式）
+            result = result.replace(/\\u(\d+)\??/g, (match, code) => {
+                try {
+                    return String.fromCharCode(parseInt(code));
+                } catch (e) {
+                    return '';
+                }
+            });
+            
+            // 16進数文字の処理（\'XX 形式）
+            result = result.replace(/\\'([0-9a-fA-F]{2})/g, (match, hex) => {
+                return String.fromCharCode(parseInt(hex, 16));
+            });
+            
+            // 連続する空白を整理
+            result = result.replace(/\n{3,}/g, '\n\n');
+            result = result.replace(/[ \t]+/g, ' ');
+            result = result.trim();
+            
+            return result;
+            
+        } catch (error) {
+            console.error('RTF変換エラー:', error);
+            return this.extractTextFromRtfFallback(rtf);
+        }
+    }
+
+    extractTextFromRtfFallback(rtf) {
+        // フォールバック：より単純なテキスト抽出
+        try {
+            // 中括弧の外側にあるテキストを抽出
+            let text = rtf;
+            
+            // 基本的な制御文字を削除
+            text = text.replace(/\{\\[^{]+\}/g, '');
+            text = text.replace(/\\[a-zA-Z]+\d*/g, '');
+            text = text.replace(/\\'[0-9a-fA-F]{2}/g, '');
+            text = text.replace(/\\[{}]/g, '');
+            text = text.replace(/[{}]/g, '');
+            
+            // 特殊文字処理
+            text = text.replace(/\\par/g, '\n');
+            text = text.replace(/\\line/g, '\n');
+            text = text.replace(/\\tab/g, '\t');
+            
+            // 整理
+            text = text.replace(/\s+/g, ' ').trim();
+            
+            return text;
+        } catch (error) {
+            console.error('フォールバック変換も失敗:', error);
+            return rtf;
+        }
+    }
+
+    formatText(text) {
+        // テキストを整形して読みやすくする
+        return text
+            // 連続する空白文字を単一のスペースに（ただし改行は保持）
+            .replace(/[ \t]+/g, ' ')
+            // 空行（1行以上の空行）でテキストの塊を分割
+            .replace(/\n{2,}/g, '\n\n\n')
+            // 各塊内で句読点後の改行を削除（単語の途中で折り返さない限り段落分けしない）
+            .replace(/([。！？])(?=\n)/g, '$1')
+            // 箇条書きの整形
+            .replace(/^([・•]\s*)/gm, '• ')
+            // 数字付きリストの整形
+            .replace(/^(\d+)\.?\s*/gm, '$1. ')
+            // 塊の区切りをマーク
+            .replace(/\n{3,}/g, '\n\n===BLOCK_SEPARATOR===\n\n')
+            // 先頭と末尾の空白を削除
+            .trim();
+    }
+
+    displayContent() {
+        this.documentTitle.textContent = this.currentTitle;
+        
+        // テキストを塊に分割してHTMLとして表示
+        const blocks = this.currentText.split('===BLOCK_SEPARATOR===');
+        let htmlContent = '';
+        
+        blocks.forEach((block, index) => {
+            if (block.trim()) {
+                // 各塊を単一の段落として処理（改行をスペースに変換）
+                let cleanBlock = block.trim().replace(/\n+/g, ' ').replace(/\s+/g, ' ');
+                
+                // …や＝の前の文字列を用語として認識して太字に
+                cleanBlock = cleanBlock.replace(/([^…＝\s]+)([…＝])/g, '<span class="term">$1</span>$2');
+                
+                if (cleanBlock) {
+                    htmlContent += `<p class="text-paragraph">${cleanBlock}</p>`;
+                }
+                
+                // 塊の間に広い余白を追加（最後の塊以外）
+                if (index < blocks.length - 1) {
+                    htmlContent += '<div class="block-separator"></div>';
+                }
+            }
+        });
+        
+        this.textDisplay.innerHTML = htmlContent;
+        
+        // 用語抽出はここでは行わない（ライブラリ保存時に行う）
+        
+        // プレースホルダーボタンを非表示にする
+        const placeholderAction = this.textDisplay.querySelector('.placeholder-action');
+        if (placeholderAction) {
+            placeholderAction.style.display = 'none';
+        }
+        
+        this.textDisplay.classList.add('slide-up');
+        
+        // アニメーションクラスをリセット
+        setTimeout(() => {
+            this.textDisplay.classList.remove('slide-up');
+        }, 300);
+    }
+
+    clearContent() {
+        this.currentText = '';
+        this.currentTitle = '';
+        
+        this.documentTitle.textContent = 'ドキュメントが選択されていません';
+        this.textDisplay.innerHTML = '<p class="placeholder">読み込みボタンをクリックしてテキストファイルを読み込んでください</p><div class="placeholder-action"><button id="loadBtnInline" class="btn primary">読み込み</button></div>';
+        
+        // イベントリスナーを再設定
+        const newInlineBtn = document.getElementById('loadBtnInline');
+        if (newInlineBtn) {
+            newInlineBtn.addEventListener('click', () => this.toggleDropZone());
+        }
+        
+        this.saveToLibraryBtn.disabled = true;
+        this.clearBtn.disabled = true;
+        
+        this.showMessage('コンテンツをクリアしました', 'info');
+    }
+
+    saveToLibrary() {
+        console.log('saveToLibraryが呼ばれました');
+        console.log('currentText:', this.currentText);
+        console.log('currentTitle:', this.currentTitle);
+        
+        if (!this.currentText) {
+            this.showMessage('保存するテキストがありません', 'error');
+            return;
+        }
+
+        const item = {
+            id: Date.now(),
+            title: this.currentTitle || '無題',
+            content: this.currentText,
+            createdAt: new Date().toISOString()
+        };
+
+        console.log('保存するアイテム:', item);
+
+        this.library.push(item);
+        this.saveLibrary();
+        this.updateLibraryDisplay();
+        
+        // ライブラリ保存時に用語を抽出してワードライブラリに保存
+        this.extractAndSaveWordsFromText(this.currentText, this.currentTitle);
+        
+        this.showMessage(`「${this.currentTitle}」をライブラリに保存しました`, 'success');
+        
+        // 少し遅延させてクリアを実行し、ポップアップが重ならないようにする
+        setTimeout(() => {
+            this.clearContent();
+        }, 1000);
+    }
+
+    extractAndSaveWordsFromText(text, title) {
+        // …や＝の前の用語を抽出
+        const termRegex = /([^…＝\s]+)([…＝])/g;
+        const matches = [...text.matchAll(termRegex)];
+        
+        matches.forEach(match => {
+            const word = match[1].trim();
+            if (word.length > 0) {
+                this.saveToWordLibrary(word, match[2], title);
+            }
+        });
+    }
+
+    saveToWordLibrary(word, delimiter, sourceTitle) {
+        // 既に存在するかチェック
+        const existingWord = this.wordLibrary.find(w => w.word === word);
+        if (existingWord) {
+            // 既に存在する場合は最終確認時刻と区切り文字を更新
+            existingWord.lastSeen = new Date().toISOString();
+            existingWord.delimiters = [...new Set([...existingWord.delimiters, delimiter])];
+        } else {
+            // 新しい用語を追加
+            const wordItem = {
+                id: Date.now() + Math.random(),
+                word: word,
+                delimiters: [delimiter],
+                sourceTitle: sourceTitle,
+                createdAt: new Date().toISOString(),
+                lastSeen: new Date().toISOString()
+            };
+            this.wordLibrary.push(wordItem);
+        }
+        
+        this.saveWordLibrary();
+        this.updateWordLibraryDisplay();
+    }
+
+    createPreview(text) {
+        // プレビュー用に最初の100文字程度を抽出
+        if (!text || typeof text !== 'string') {
+            return 'プレビューなし';
+        }
+        return text.substring(0, 100).replace(/\n/g, ' ') + (text.length > 100 ? '...' : '');
+    }
+
+    loadWordLibrary() {
+        const saved = localStorage.getItem('wordLibrary');
+        return saved ? JSON.parse(saved) : [];
+    }
+
+    saveWordLibrary() {
+        localStorage.setItem('wordLibrary', JSON.stringify(this.wordLibrary));
+    }
+
+    updateWordLibraryDisplay(searchTerm = '') {
+        this.wordLibraryGrid.innerHTML = '';
+        
+        // 検索フィルター
+        let filteredWords = this.wordLibrary;
+        if (searchTerm.trim()) {
+            filteredWords = this.wordLibrary.filter(word => 
+                word.word.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        if (filteredWords.length === 0) {
+            this.wordLibraryGrid.innerHTML = '<p class="placeholder">ワードライブラリに用語がありません</p>';
+            return;
+        }
+
+        // 検索中はすべて表示、通常時はランダムで3つまで表示
+        let displayWords = filteredWords;
+        if (!searchTerm.trim()) {
+            // ランダムで3つ選出
+            displayWords = this.getRandomWords(filteredWords, 3);
+        } else {
+            // 検索中は最終確認時刻の新しい順にソート
+            displayWords.sort((a, b) => new Date(b.lastSeen) - new Date(a.lastSeen));
+        }
+
+        displayWords.forEach(word => {
+            const element = this.createWordLibraryItem(word);
+            this.wordLibraryGrid.appendChild(element);
+        });
+    }
+
+    getRandomWords(words, count) {
+        // 配列をシャッフルして指定数だけ返す
+        const shuffled = [...words].sort(() => 0.5 - Math.random());
+        return shuffled.slice(0, Math.min(count, words.length));
+    }
+
+    createWordLibraryItem(word) {
+        const div = document.createElement('div');
+        div.className = 'library-item word-item';
+        
+        div.innerHTML = `
+            <div class="library-item-actions">
+                <button class="delete-btn" data-id="${word.id}">×</button>
+            </div>
+            <h3 class="library-item-title">${this.escapeHtml(word.word)}</h3>
+            <p class="library-item-preview">ソース: ${this.escapeHtml(word.sourceTitle || '不明')}</p>
+            <p class="library-item-date">最終確認: ${this.formatDate(word.lastSeen)}</p>
+        `;
+
+        // 用語をクリックして詳細を表示
+        div.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('delete-btn')) {
+                this.showWordDetail(word);
+            }
+        });
+
+        // 削除ボタン
+        div.querySelector('.delete-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.deleteFromWordLibrary(word.id);
+        });
+
+        return div;
+    }
+
+    showWordDetail(word) {
+        this.wordDetailTitle.textContent = word.word;
+        
+        // 用語の説明（区切り文字以降の文章）を検索して表示
+        const explanationText = this.findWordExplanation(word.word);
+        this.wordDetailContent.innerHTML = `
+            <div class="word-info">
+                <p><strong>ソース:</strong> ${this.escapeHtml(word.sourceTitle || '不明')}</p>
+                <p><strong>最終確認:</strong> ${this.formatDate(word.lastSeen)}</p>
+            </div>
+            <div class="word-context">
+                <h4>用語の説明:</h4>
+                <p>${this.escapeHtml(explanationText)}</p>
+            </div>
+        `;
+        
+        this.wordDetail.classList.remove('hidden');
+    }
+
+    hideWordDetail() {
+        this.wordDetail.classList.add('hidden');
+    }
+
+    findWordExplanation(word) {
+        // ワードライブラリから用語情報を取得
+        const wordInfo = this.wordLibrary.find(w => w.word === word);
+        if (!wordInfo) {
+            return '説明が見つかりませんでした。';
+        }
+        
+        // ソースタイトルから対応するライブラリアイテムを検索
+        const libraryItem = this.library.find(item => item.title === wordInfo.sourceTitle);
+        if (!libraryItem) {
+            return '説明が見つかりませんでした。';
+        }
+        
+        // ライブラリのテキストから用語と区切り文字以降の文章を検索
+        const regex = new RegExp(`${this.escapeRegex(word)}[…＝](.{0,100})`, 'g');
+        const match = libraryItem.content.match(regex);
+        
+        if (match && match.length > 0) {
+            // 最初のマッチから区切り文字以降の部分を抽出
+            const explanation = match[0].replace(new RegExp(`${this.escapeRegex(word)}[…＝]`), '');
+            return explanation.trim();
+        }
+        
+        return '説明が見つかりませんでした。';
+    }
+
+    escapeRegex(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    searchWords() {
+        const searchTerm = this.wordSearch.value;
+        this.updateWordLibraryDisplay(searchTerm);
+    }
+
+    deleteFromWordLibrary(id) {
+        if (!confirm('本当にこの用語を削除しますか？')) return;
+        
+        const index = this.wordLibrary.findIndex(word => word.id === id);
+        if (index !== -1) {
+            const deletedWord = this.wordLibrary[index];
+            this.wordLibrary.splice(index, 1);
+            this.saveWordLibrary();
+            this.updateWordLibraryDisplay(this.wordSearch.value);
+            
+            this.showMessage(`「${deletedWord.word}」を削除しました`, 'info');
+        }
+    }
+
+    clearWordLibrary() {
+        // パスワードを要求
+        const password = prompt('ワードライブラリをクリアするにはパスワードを入力してください:');
+        
+        if (REMOVED_CHECK) {
+            if (password !== null) {
+                this.showMessage('パスワードが正しくありません', 'error');
+            }
+            return;
+        }
+        
+        if (!confirm('本当にワードライブラリをクリアしますか？この操作は元に戻せません。')) return;
+        
+        this.wordLibrary = [];
+        this.saveWordLibrary();
+        this.updateWordLibraryDisplay();
+        
+        this.showMessage('ワードライブラリをクリアしました', 'info');
+    }
+
+    clearAll() {
+        // パスワードを要求
+        const password = prompt('すべてのデータを削除するにはパスワードを入力してください:');
+        
+        if (REMOVED_CHECK) {
+            if (password !== null) {
+                this.showMessage('パスワードが正しくありません', 'error');
+            }
+            return;
+        }
+        
+        if (!confirm('本当にすべてのデータを削除しますか？\n・ワードライブラリ\n・テキストファイルライブラリ\n\nこの操作は元に戻せません。')) return;
+        
+        // 両方のライブラリをクリア
+        this.wordLibrary = [];
+        this.library = [];
+        
+        // 保存
+        this.saveWordLibrary();
+        this.saveLibrary();
+        
+        // 表示更新
+        this.updateWordLibraryDisplay();
+        this.updateLibraryDisplay();
+        
+        // 現在のコンテンツもクリア
+        this.clearContent();
+        
+        this.showMessage('すべてのデータを削除しました', 'info');
+    }
+
+    updateLibraryDisplay() {
+        this.libraryGrid.innerHTML = '';
+
+        if (this.library.length === 0) {
+            this.libraryGrid.innerHTML = '<p class="placeholder">テキストファイルライブラリにテキストがありません</p>';
+            return;
+        }
+
+        this.library.forEach(item => {
+            const element = this.createLibraryItem(item);
+            this.libraryGrid.appendChild(element);
+        });
+    }
+
+    createLibraryItem(item) {
+        const div = document.createElement('div');
+        div.className = 'library-item';
+        
+        // 古いデータ形式に対応（contentがなければtextを使用）
+        const content = item.content || item.text || '';
+        
+        div.innerHTML = `
+            <div class="library-item-actions">
+                <button class="delete-btn" data-id="${item.id}">×</button>
+            </div>
+            <h3 class="library-item-title">${this.escapeHtml(item.title)}</h3>
+            <p class="library-item-preview">${this.escapeHtml(this.createPreview(content))}</p>
+            <p class="library-item-date">${this.formatDate(item.createdAt)}</p>
+        `;
+
+        // クリックでテキストを表示
+        div.addEventListener('click', (e) => {
+            if (!e.target.classList.contains('delete-btn')) {
+                this.loadFromLibrary(item);
+            }
+        });
+
+        // 削除ボタン
+        div.querySelector('.delete-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.deleteFromLibrary(item.id);
+        });
+
+        return div;
+    }
+
+    loadFromLibrary(item) {
+        // 古いデータ形式に対応（contentがなければtextを使用）
+        this.currentText = item.content || item.text || '';
+        this.currentTitle = item.title;
+        this.displayContent();
+        
+        this.saveToLibraryBtn.disabled = true;
+        this.clearBtn.disabled = false;
+        
+        this.showMessage(`「${item.title}」をライブラリから読み込みました`, 'success');
+        
+        // ライブラリから読み込んだ際も用語を抽出（既に存在する場合は重複しない）
+        this.extractAndSaveWordsFromText(this.currentText, this.currentTitle);
+    }
+
+    deleteFromLibrary(id) {
+        if (!confirm('本当に削除しますか？')) return;
+        
+        const index = this.library.findIndex(item => item.id === id);
+        if (index !== -1) {
+            const deletedItem = this.library[index];
+            this.library.splice(index, 1);
+            this.saveLibrary();
+            this.updateLibraryDisplay();
+            
+            this.showMessage(`「${deletedItem.title}」を削除しました`, 'info');
+        }
+    }
+
+    clearLibrary() {
+        // パスワードを要求
+        const password = prompt('ライブラリをクリアするにはパスワードを入力してください:');
+        
+        if (REMOVED_CHECK) {
+            if (password !== null) {
+                this.showMessage('パスワードが正しくありません', 'error');
+            }
+            return;
+        }
+        
+        if (!confirm('本当にライブラリをクリアしますか？この操作は元に戻せません。')) return;
+        
+        this.library = [];
+        this.saveLibrary();
+        this.updateLibraryDisplay();
+        
+        this.showMessage('ライブラリをクリアしました', 'info');
+    }
+
+    formatDate(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('ja-JP', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    showMessage(message, type = 'info') {
+        // メッセージ表示用の一時的な要素を作成
+        const messageEl = document.createElement('div');
+        messageEl.className = `message message-${type}`;
+        messageEl.textContent = message;
+        messageEl.style.cssText = `
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            padding: 0.75rem 1.25rem;
+            border-radius: 8px;
+            color: white;
+            font-weight: 600;
+            font-size: 0.9rem;
+            z-index: 2000;
+            animation: slideInRight 0.3s ease;
+            max-width: 280px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        `;
+
+        // 背景色をタイプに応じて設定
+        const colors = {
+            'success': 'linear-gradient(135deg, #10b981, #059669)',
+            'error': 'linear-gradient(135deg, #ef4444, #dc2626)',
+            'info': 'linear-gradient(135deg, #3b82f6, #2563eb)'
+        };
+        messageEl.style.background = colors[type] || colors.info;
+
+        document.body.appendChild(messageEl);
+
+        // 3秒後に自動で削除
+        setTimeout(() => {
+            messageEl.style.animation = 'slideOutRight 0.3s ease';
+            setTimeout(() => {
+                if (messageEl.parentNode) {
+                    messageEl.parentNode.removeChild(messageEl);
+                }
+            }, 300);
+        }, 3000);
+    }
+
+    // ローカルストレージ操作
+    saveLibrary() {
+        localStorage.setItem('textLibrary', JSON.stringify(this.library));
+    }
+
+    loadLibrary() {
+        const saved = localStorage.getItem('textLibrary');
+        return saved ? JSON.parse(saved) : [];
+    }
+}
+
+// アニメーション用のCSSを動的に追加
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideInRight {
+        from {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+    
+    @keyframes slideOutRight {
+        from {
+            opacity: 1;
+            transform: translateX(0);
+        }
+        to {
+            opacity: 0;
+            transform: translateX(100px);
+        }
+    }
+`;
+document.head.appendChild(style);
+
+// アプリケーションを初期化
+document.addEventListener('DOMContentLoaded', () => {
+    new TextLibrary();
+});

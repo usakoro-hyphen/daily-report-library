@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日報図書館</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="shortcut icon" href="/favicon.ico">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header class="header">
+        <h1 class="title">日報図書館</h1>
+    </header>
+
+    <main class="main-container">
+        <!-- テキスト表示エリア -->
+        <section id="contentArea" class="content-area">
+            <div class="content-header">
+                <h2 id="documentTitle" class="document-title">ドキュメントが選択されていません</h2>
+                <div class="content-actions">
+                    <button id="saveToLibraryBtn" class="btn small" disabled>ライブラリに保存</button>
+                    <button id="clearBtn" class="btn small secondary" disabled>クリア</button>
+                </div>
+            </div>
+            <div id="textDisplay" class="text-display">
+                <p class="placeholder">読み込みボタンをクリックしてテキストファイルを読み込んでください</p>
+                <div class="placeholder-action">
+                    <!-- ドラッグ&ドロップエリア -->
+                    <div id="dropZone" class="drop-zone hidden">
+                        <div class="drop-content">
+                            <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            </svg>
+                            <p class="drop-text">テキストファイル（.txt, .rtf）をここにドラッグ&ドロップ</p>
+                            <p class="drop-subtext">またはクリックしてファイルを選択</p>
+                        </div>
+                        <input type="file" id="fileInput" accept=".txt,.rtf" multiple hidden>
+                    </div>
+                    <button id="loadBtnInline" class="btn primary">読み込み</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ワードライブラリエリア -->
+        <section id="wordLibraryArea" class="library-area">
+            <div class="library-header">
+                <h2 class="library-title">ワードライブラリ</h2>
+                <div class="library-controls">
+                    <input type="text" id="wordSearch" class="search-box" placeholder="用語を検索...">
+                </div>
+            </div>
+            <div id="wordLibraryGrid" class="library-grid">
+                <!-- ワードライブラリアイテムがここに表示されます -->
+            </div>
+            <!-- 用語詳細表示エリア -->
+            <div id="wordDetail" class="word-detail hidden">
+                <div class="word-detail-header">
+                    <h3 id="wordDetailTitle" class="word-detail-title"></h3>
+                    <button id="closeWordDetail" class="btn small secondary">×</button>
+                </div>
+                <div id="wordDetailContent" class="word-detail-content"></div>
+            </div>
+        </section>
+
+        <!-- テキストファイルライブラリエリア -->
+        <section id="libraryArea" class="library-area">
+            <div class="library-header">
+                <h2 class="library-title">テキストファイルライブラリ</h2>
+                <div class="library-controls">
+                </div>
+            </div>
+            <div id="libraryGrid" class="library-grid">
+                <!-- ライブラリアイテムがここに表示されます -->
+            </div>
+        </section>
+    </main>
+
+    <!-- フッター -->
+    <footer class="footer">
+        <div class="footer-controls">
+            <button id="clearWordLibraryBtn" class="btn tiny danger">ワードライブラリを全て削除</button>
+            <button id="clearLibraryBtn" class="btn tiny danger">テキストファイルライブラリを全て削除</button>
+            <button id="clearAllBtn" class="btn tiny danger">なにもかも削除</button>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
