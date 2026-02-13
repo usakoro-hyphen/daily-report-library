@@ -133,7 +133,7 @@ class TextLibrary {
 
     loadTextContent(text, filename) {
         // テキストを整形して読みやすくする
-        return text
+        const formattedText = text
             // 連続する空白文字を単一のスペースに（ただし改行は保持）
             .replace(/[ \t]+/g, ' ')
             // 空行（1行以上の空行）でテキストの塊を分割
@@ -148,6 +148,11 @@ class TextLibrary {
             .replace(/\n{3,}/g, '\n\n===BLOCK_SEPARATOR===\n\n')
             // 先頭と末尾の空白を削除
             .trim();
+        
+        // テキストとタイトルを設定して表示
+        this.currentText = formattedText;
+        this.currentTitle = filename;
+        this.displayContent();
     }
 
     displayContent() {
