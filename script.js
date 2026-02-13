@@ -189,8 +189,8 @@ class TextLibrary {
         
         // 用語抽出はここでは行わない（ライブラリ保存時に行う）
         
-        // コンテンツアクションボタンを表示する
-        this.showContentActions();
+        // 既存のコンテンツアクションボタンを有効化
+        this.enableContentActions();
         
         this.textDisplay.classList.add('slide-up');
         
@@ -200,27 +200,23 @@ class TextLibrary {
         }, 300);
     }
 
-    showContentActions() {
-        // コンテンツアクションボタンを表示
-        const contentActions = document.createElement('div');
-        contentActions.className = 'content-actions';
-        contentActions.innerHTML = `
-            <button id="saveToLibraryBtn" class="btn primary">ライブラリに保存</button>
-            <button id="clearBtn" class="btn secondary">クリア</button>
-        `;
-        
-        // テキスト表示エリアの後に追加
-        this.textDisplay.parentNode.appendChild(contentActions);
-        
-        // イベントリスナーを再設定
-        this.saveToLibraryBtn = document.getElementById('saveToLibraryBtn');
-        this.clearBtn = document.getElementById('clearBtn');
-        
+    enableContentActions() {
+        // 既存のコンテンツアクションボタンを有効化
         if (this.saveToLibraryBtn) {
-            this.saveToLibraryBtn.addEventListener('click', () => this.saveToLibrary());
+            this.saveToLibraryBtn.disabled = false;
         }
         if (this.clearBtn) {
-            this.clearBtn.addEventListener('click', () => this.clearContent());
+            this.clearBtn.disabled = false;
+        }
+    }
+
+    disableContentActions() {
+        // 既存のコンテンツアクションボタンを無効化
+        if (this.saveToLibraryBtn) {
+            this.saveToLibraryBtn.disabled = true;
+        }
+        if (this.clearBtn) {
+            this.clearBtn.disabled = true;
         }
     }
 
@@ -231,14 +227,14 @@ class TextLibrary {
         this.documentTitle.textContent = 'ドキュメントが選択されていません';
         this.textDisplay.innerHTML = '<p class="placeholder">読み込みボタンをクリックしてテキストファイルを読み込んでください</p><div class="placeholder-action"><button id="loadBtnInline" class="btn primary">読み込み</button></div>';
         
+        // コンテンツアクションボタンを無効化
+        this.disableContentActions();
+        
         // イベントリスナーを再設定
         const newInlineBtn = document.getElementById('loadBtnInline');
         if (newInlineBtn) {
             newInlineBtn.addEventListener('click', () => this.toggleDropZone());
         }
-        
-        this.saveToLibraryBtn.disabled = true;
-        this.clearBtn.disabled = true;
         
         this.showMessage('コンテンツをクリアしました', 'info');
     }
