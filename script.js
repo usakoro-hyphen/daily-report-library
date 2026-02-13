@@ -43,6 +43,10 @@ class TextLibrary {
         
         // ファイル入力
         this.fileInput = document.getElementById('fileInput');
+        
+        // コンテンツアクションボタン
+        this.saveToLibraryBtn = document.getElementById('saveToLibraryBtn');
+        this.clearBtn = document.getElementById('clearBtn');
     }
 
     bindEvents() {
