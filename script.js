@@ -106,42 +106,21 @@ class TextLibrary {
     processFiles(files) {
         const textFiles = files.filter(file => 
             file.type === 'text/plain' || 
-            file.name.endsWith('.txt') || 
-            file.name.endsWith('.rtf')
+            file.name.endsWith('.txt')
         );
         
         if (textFiles.length === 0) {
-            this.showMessage('テキストファイル（.txt, .rtf）を選択してください', 'error');
+            this.showMessage('テキストファイル（.txt）を選択してください', 'error');
             return;
         }
 
         // 最初のファイルのみを処理
         const file = textFiles[0];
-        this.loadTextFile(file);
-    }
-
-    loadTextFile(file) {
         const reader = new FileReader();
         
         reader.onload = (e) => {
-            let text = e.target.result;
-            
-            // RTFファイルの場合はプレーンテキストに変換
-            if (file.name.endsWith('.rtf')) {
-                text = this.convertRtfToText(text);
-            }
-            
-            this.currentText = this.formatText(text);
-            this.currentTitle = file.name.replace(/\.(txt|rtf)$/, '');
-            
-            this.displayContent();
-            this.dropZone.classList.add('hidden');
-            
-            // ボタンを有効化
-            this.saveToLibraryBtn.disabled = false;
-            this.clearBtn.disabled = false;
-            
-            this.showMessage(`ファイル「${this.currentTitle}」を読み込みました`, 'success');
+            const content = e.target.result;
+            this.loadTextContent(content, file.name);
         };
         
         reader.onerror = () => {
@@ -151,164 +130,7 @@ class TextLibrary {
         reader.readAsText(file, 'UTF-8');
     }
 
-    convertRtfToText(rtf) {
-        // RTFからプレーンテキストへ変換
-        try {
-            let text = rtf;
-            
-            // BOMと文字コード処理
-            if (text.charCodeAt(0) === 0xFEFF) {
-                text = text.slice(1);
-            }
-            
-            // RTFヘッダーを検出
-            if (!text.match(/^\{\\rtf1/)) {
-                return text; // RTFでない場合はそのまま返す
-            }
-            
-            // テキスト部分を抽出（中括弧のグループを処理）
-            let result = '';
-            let braceLevel = 0;
-            let i = 0;
-            
-            while (i < text.length) {
-                const char = text[i];
-                
-                if (char === '{') {
-                    braceLevel++;
-                    // 制御ワードグループの開始をスキップ
-                    if (braceLevel === 1 && i + 1 < text.length && text[i + 1] === '\\') {
-                        // 次の対応する中括弧までスキップ
-                        let skipLevel = 1;
-                        i++;
-                        while (i < text.length && skipLevel > 0) {
-                            if (text[i] === '{') skipLevel++;
-                            else if (text[i] === '}') skipLevel--;
-                            i++;
-                        }
-                        braceLevel--;
-                        continue;
-                    }
-                } else if (char === '}') {
-                    braceLevel--;
-                    if (braceLevel < 0) braceLevel = 0;
-                } else if (braceLevel === 0 && char !== '\\') {
-                    // 通常のテキスト文字
-                    result += char;
-                } else if (char === '\\' && braceLevel === 0) {
-                    // 制御文字の処理
-                    let j = i + 1;
-                    let controlWord = '';
-                    
-                    while (j < text.length && /[a-zA-Z]/.test(text[j])) {
-                        controlWord += text[j];
-                        j++;
-                    }
-                    
-                    // 数値引数をスキップ
-                    while (j < text.length && /[0-9-]/.test(text[j])) {
-                        j++;
-                    }
-                    
-                    // スペースをスキップ
-                    if (j < text.length && text[j] === ' ') {
-                        j++;
-                    }
-                    
-                    switch (controlWord) {
-                        case 'par':
-                        case 'line':
-                            result += '\n';
-                            break;
-                        case 'tab':
-                            result += '\t';
-                            break;
-                        case 'ldblquote':
-                            result += '"';
-                            break;
-                        case 'rdblquote':
-                            result += '"';
-                            break;
-                        case 'lquote':
-                            result += "'";
-                            break;
-                        case 'rquote':
-                            result += "'";
-                            break;
-                        case 'emdash':
-                            result += '—';
-                            break;
-                        case 'endash':
-                            result += '–';
-                            break;
-                        case 'bullet':
-                            result += '•';
-                            break;
-                        // その他の制御文字は無視
-                    }
-                    
-                    i = j - 1;
-                }
-                
-                i++;
-            }
-            
-            // Unicode文字の処理（\uXXXX? 形式）
-            result = result.replace(/\\u(\d+)\??/g, (match, code) => {
-                try {
-                    return String.fromCharCode(parseInt(code));
-                } catch (e) {
-                    return '';
-                }
-            });
-            
-            // 16進数文字の処理（\'XX 形式）
-            result = result.replace(/\\'([0-9a-fA-F]{2})/g, (match, hex) => {
-                return String.fromCharCode(parseInt(hex, 16));
-            });
-            
-            // 連続する空白を整理
-            result = result.replace(/\n{3,}/g, '\n\n');
-            result = result.replace(/[ \t]+/g, ' ');
-            result = result.trim();
-            
-            return result;
-            
-        } catch (error) {
-            console.error('RTF変換エラー:', error);
-            return this.extractTextFromRtfFallback(rtf);
-        }
-    }
-
-    extractTextFromRtfFallback(rtf) {
-        // フォールバック：より単純なテキスト抽出
-        try {
-            // 中括弧の外側にあるテキストを抽出
-            let text = rtf;
-            
-            // 基本的な制御文字を削除
-            text = text.replace(/\{\\[^{]+\}/g, '');
-            text = text.replace(/\\[a-zA-Z]+\d*/g, '');
-            text = text.replace(/\\'[0-9a-fA-F]{2}/g, '');
-            text = text.replace(/\\[{}]/g, '');
-            text = text.replace(/[{}]/g, '');
-            
-            // 特殊文字処理
-            text = text.replace(/\\par/g, '\n');
-            text = text.replace(/\\line/g, '\n');
-            text = text.replace(/\\tab/g, '\t');
-            
-            // 整理
-            text = text.replace(/\s+/g, ' ').trim();
-            
-            return text;
-        } catch (error) {
-            console.error('フォールバック変換も失敗:', error);
-            return rtf;
-        }
-    }
-
-    formatText(text) {
+    loadTextContent(text, filename) {
         // テキストを整形して読みやすくする
         return text
             // 連続する空白文字を単一のスペースに（ただし改行は保持）
