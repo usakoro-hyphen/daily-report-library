@@ -39,6 +39,7 @@ class TextLibrary {
         
         // 検索
         this.wordSearch = document.getElementById('wordSearch');
+        this.librarySearch = document.getElementById('librarySearch');
         
         // ファイル入力
         this.fileInput = document.getElementById('fileInput');
@@ -68,6 +69,9 @@ class TextLibrary {
         
         // ワード検索
         this.wordSearch.addEventListener('input', () => this.searchWords());
+        
+        // テキストファイルライブラリ検索
+        this.librarySearch.addEventListener('input', () => this.searchLibrary());
         
         // 用語詳細
         this.closeWordDetail.addEventListener('click', () => this.hideWordDetail());
@@ -425,6 +429,11 @@ class TextLibrary {
         this.updateWordLibraryDisplay(searchTerm);
     }
 
+    searchLibrary() {
+        const searchTerm = this.librarySearch.value;
+        this.updateLibraryDisplay(searchTerm);
+    }
+
     deleteFromWordLibrary(id) {
         if (!confirm('本当にこの用語を削除しますか？')) return;
         
@@ -490,15 +499,23 @@ class TextLibrary {
         this.showMessage('すべてのデータを削除しました', 'info');
     }
 
-    updateLibraryDisplay() {
+    updateLibraryDisplay(searchTerm = '') {
         this.libraryGrid.innerHTML = '';
 
-        if (this.library.length === 0) {
+        // 検索フィルター
+        let filteredItems = this.library;
+        if (searchTerm.trim()) {
+            filteredItems = this.library.filter(item => 
+                item.title.toLowerCase().includes(searchTerm.toLowerCase())
+            );
+        }
+
+        if (filteredItems.length === 0) {
             this.libraryGrid.innerHTML = '<p class="placeholder">テキストファイルライブラリにテキストがありません</p>';
             return;
         }
 
-        this.library.forEach(item => {
+        filteredItems.forEach(item => {
             const element = this.createLibraryItem(item);
             this.libraryGrid.appendChild(element);
         });
