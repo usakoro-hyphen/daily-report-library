@@ -78,10 +78,8 @@ class TextLibrary {
     }
 
     toggleDropZone() {
-        this.dropZone.classList.toggle('hidden');
-        if (!this.dropZone.classList.contains('hidden')) {
-            this.dropZone.classList.add('fade-in');
-        }
+        // 直接ファイル選択を開く
+        this.fileInput.click();
     }
 
     handleDragOver(e) {
