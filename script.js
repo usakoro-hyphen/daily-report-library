@@ -189,11 +189,8 @@ class TextLibrary {
         
         // 用語抽出はここでは行わない（ライブラリ保存時に行う）
         
-        // プレースホルダーボタンを非表示にする
-        const placeholderAction = this.textDisplay.querySelector('.placeholder-action');
-        if (placeholderAction) {
-            placeholderAction.style.display = 'none';
-        }
+        // コンテンツアクションボタンを表示する
+        this.showContentActions();
         
         this.textDisplay.classList.add('slide-up');
         
@@ -201,6 +198,30 @@ class TextLibrary {
         setTimeout(() => {
             this.textDisplay.classList.remove('slide-up');
         }, 300);
+    }
+
+    showContentActions() {
+        // コンテンツアクションボタンを表示
+        const contentActions = document.createElement('div');
+        contentActions.className = 'content-actions';
+        contentActions.innerHTML = `
+            <button id="saveToLibraryBtn" class="btn primary">ライブラリに保存</button>
+            <button id="clearBtn" class="btn secondary">クリア</button>
+        `;
+        
+        // テキスト表示エリアの後に追加
+        this.textDisplay.parentNode.appendChild(contentActions);
+        
+        // イベントリスナーを再設定
+        this.saveToLibraryBtn = document.getElementById('saveToLibraryBtn');
+        this.clearBtn = document.getElementById('clearBtn');
+        
+        if (this.saveToLibraryBtn) {
+            this.saveToLibraryBtn.addEventListener('click', () => this.saveToLibrary());
+        }
+        if (this.clearBtn) {
+            this.clearBtn.addEventListener('click', () => this.clearContent());
+        }
     }
 
     clearContent() {
