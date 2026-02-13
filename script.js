@@ -109,8 +109,7 @@ class TextLibrary {
 
     processFiles(files) {
         const textFiles = files.filter(file => 
-            file.type === 'text/plain' || 
-            file.name.endsWith('.txt')
+            file.name.endsWith('.txt')  // 拡張子のみで判定
         );
         
         if (textFiles.length === 0) {
