@@ -849,6 +849,10 @@ class TextLibrary {
     }
 
     closeOcrModal() {
+        console.log('closeOcrModalが呼ばれました');
+        console.log('this.ocrModal:', this.ocrModal);
+        console.log('this.closeOcrModal:', this.closeOcrModal);
+        
         this.stopCamera();
         this.ocrModal.classList.add('hidden');
         this.resetOcrState();
