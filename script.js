@@ -89,7 +89,7 @@ class TextLibrary {
         
         // OCR関連
         this.cameraBtn.addEventListener('click', () => this.openOcrModal());
-        this.closeOcrModal.addEventListener('click', () => this.closeOcrModal());
+        // closeOcrModalのイベントリスナーはopenOcrModal内で動的に設定
         this.captureBtn.addEventListener('click', () => this.captureImage());
         this.retakeBtn.addEventListener('click', () => this.retakeImage());
         this.recognizeBtn.addEventListener('click', () => this.recognizeText());
@@ -845,6 +845,14 @@ class TextLibrary {
     // OCR機能関連メソッド
     async openOcrModal() {
         this.ocrModal.classList.remove('hidden');
+        
+        // 閉じるボタンのイベントリスナーを動的に設定
+        const closeBtn = document.getElementById('closeOcrModal');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => this.closeOcrModal());
+            console.log('閉じるボタンのイベントリスナーを設定しました');
+        }
+        
         await this.startCamera();
     }
 
