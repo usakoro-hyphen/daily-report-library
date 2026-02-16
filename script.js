@@ -594,6 +594,106 @@ class TextLibrary {
         return '説明が見つかりませんでした。';
     }
 
+    promptPassword(message) {
+        // 非表示パスワード入力ダイアログを作成
+        const dialog = document.createElement('div');
+        dialog.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            z-index: 3000;
+            min-width: 300px;
+        `;
+        
+        dialog.innerHTML = `
+            <h3 style="margin: 0 0 1rem 0; color: #333;">${message}</h3>
+            <input type="password" id="passwordInput" style="
+                width: 100%;
+                padding: 0.75rem;
+                border: 2px solid #e5e7eb;
+                border-radius: 8px;
+                font-size: 1rem;
+                margin-bottom: 1rem;
+                box-sizing: border-box;
+            " placeholder="パスワードを入力">
+            <div style="display: flex; gap: 0.5rem; justify-content: flex-end;">
+                <button id="cancelBtn" style="
+                    padding: 0.5rem 1rem;
+                    border: none;
+                    border-radius: 6px;
+                    background: #6b7280;
+                    color: white;
+                    cursor: pointer;
+                    font-size: 0.9rem;
+                ">キャンセル</button>
+                <button id="okBtn" style="
+                    padding: 0.5rem 1rem;
+                    border: none;
+                    border-radius: 6px;
+                    background: #3b82f6;
+                    color: white;
+                    cursor: pointer;
+                    font-size: 0.9rem;
+                ">OK</button>
+            </div>
+        `;
+        
+        // オーバーレイを追加
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 2999;
+        `;
+        
+        document.body.appendChild(overlay);
+        document.body.appendChild(dialog);
+        
+        // 入力フィールドにフォーカス
+        const passwordInput = document.getElementById('passwordInput');
+        passwordInput.focus();
+        
+        return new Promise((resolve) => {
+            const handleOk = () => {
+                const password = passwordInput.value;
+                cleanup();
+                resolve(password);
+            };
+            
+            const handleCancel = () => {
+                cleanup();
+                resolve(null);
+            };
+            
+            const cleanup = () => {
+                document.body.removeChild(overlay);
+                document.body.removeChild(dialog);
+                document.removeEventListener('keydown', handleKeydown);
+            };
+            
+            const handleKeydown = (e) => {
+                if (e.key === 'Enter') {
+                    handleOk();
+                } else if (e.key === 'Escape') {
+                    handleCancel();
+                }
+            };
+            
+            document.getElementById('okBtn').addEventListener('click', handleOk);
+            document.getElementById('cancelBtn').addEventListener('click', handleCancel);
+            document.addEventListener('keydown', handleKeydown);
+        });
+    }
+
     escapeRegex(string) {
         return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     }
@@ -618,8 +718,8 @@ class TextLibrary {
     }
 
     clearWordLibrary() {
-        // パスワードを要求
-        const password = prompt('ワードライブラリをクリアするにはパスワードを入力してください:');
+        // パスワードを要求（非表示入力）
+        const password = this.promptPassword('ワードライブラリをクリアするにはパスワードを入力してください:');
         
         if (REMOVED_CHECK) {
             if (password !== null) {
@@ -638,8 +738,8 @@ class TextLibrary {
     }
 
     clearAll() {
-        // パスワードを要求
-        const password = prompt('すべてのデータを削除するにはパスワードを入力してください:');
+        // パスワードを要求（非表示入力）
+        const password = this.promptPassword('すべてのデータを削除するにはパスワードを入力してください:');
         
         if (REMOVED_CHECK) {
             if (password !== null) {
@@ -744,8 +844,8 @@ class TextLibrary {
     }
 
     clearLibrary() {
-        // パスワードを要求
-        const password = prompt('ライブラリをクリアするにはパスワードを入力してください:');
+        // パスワードを要求（非表示入力）
+        const password = this.promptPassword('ライブラリをクリアするにはパスワードを入力してください:');
         
         if (REMOVED_CHECK) {
             if (password !== null) {
