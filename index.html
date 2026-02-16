@@ -41,9 +41,40 @@
                         <input type="file" id="fileInput" accept=".txt" multiple hidden>
                     </div>
                     <button id="loadBtnInline" class="btn primary">読み込み</button>
+                    <button id="cameraBtn" class="btn secondary">📷 カメラで文字読み取り</button>
                 </div>
             </div>
         </section>
+
+        <!-- OCRカメラモーダル -->
+        <div id="ocrModal" class="modal hidden">
+            <div class="modal-content ocr-modal">
+                <div class="modal-header">
+                    <h3>📷 カメラで文字読み取り</h3>
+                    <button id="closeOcrModal" class="btn close">&times;</button>
+                </div>
+                <div class="ocr-body">
+                    <div class="camera-container">
+                        <video id="cameraVideo" class="camera-video" autoplay playsinline></video>
+                        <canvas id="captureCanvas" class="capture-canvas hidden"></canvas>
+                        <div class="camera-controls">
+                            <button id="captureBtn" class="btn primary">📸 撮影</button>
+                            <button id="retakeBtn" class="btn secondary hidden">🔄 撮り直し</button>
+                            <button id="recognizeBtn" class="btn success hidden">🔍 文字認識</button>
+                        </div>
+                    </div>
+                    <div class="ocr-result hidden">
+                        <h4>認識結果</h4>
+                        <textarea id="ocrResultText" class="ocr-textarea" placeholder="認識されたテキストがここに表示されます..."></textarea>
+                        <div class="ocr-actions">
+                            <button id="editOcrBtn" class="btn primary">✏️ 編集</button>
+                            <button id="saveOcrBtn" class="btn success">💾 ライブラリに保存</button>
+                            <button id="cancelOcrBtn" class="btn secondary">キャンセル</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- ワードライブラリエリア -->
         <section id="wordLibraryArea" class="library-area">
@@ -89,6 +120,9 @@
         </div>
     </footer>
 
+    <!-- Tesseract.js for OCR -->
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    
     <script src="script.js"></script>
 </body>
 </html>

@@ -4,6 +4,12 @@ class TextLibrary {
         this.currentTitle = '';
         this.library = this.loadLibrary();
         this.wordLibrary = this.loadWordLibrary();
+        
+        // OCR関連プロパティ
+        this.cameraStream = null;
+        this.capturedImageData = null;
+        this.ocrWorker = null;
+        
         this.initializeElements();
         this.bindEvents();
         this.updateLibraryDisplay();
@@ -18,6 +24,21 @@ class TextLibrary {
         this.clearLibraryBtn = document.getElementById('clearLibraryBtn');
         this.clearWordLibraryBtn = document.getElementById('clearWordLibraryBtn');
         this.clearAllBtn = document.getElementById('clearAllBtn');
+        
+        // OCR関連
+        this.cameraBtn = document.getElementById('cameraBtn');
+        this.ocrModal = document.getElementById('ocrModal');
+        this.closeOcrModal = document.getElementById('closeOcrModal');
+        this.cameraVideo = document.getElementById('cameraVideo');
+        this.captureCanvas = document.getElementById('captureCanvas');
+        this.captureBtn = document.getElementById('captureBtn');
+        this.retakeBtn = document.getElementById('retakeBtn');
+        this.recognizeBtn = document.getElementById('recognizeBtn');
+        this.ocrResult = document.querySelector('.ocr-result');
+        this.ocrResultText = document.getElementById('ocrResultText');
+        this.editOcrBtn = document.getElementById('editOcrBtn');
+        this.saveOcrBtn = document.getElementById('saveOcrBtn');
+        this.cancelOcrBtn = document.getElementById('cancelOcrBtn');
         
         // エリア
         this.dropZone = document.getElementById('dropZone');
@@ -65,6 +86,16 @@ class TextLibrary {
         // コンテンツアクション
         this.saveToLibraryBtn.addEventListener('click', () => this.saveToLibrary());
         this.clearBtn.addEventListener('click', () => this.clearContent());
+        
+        // OCR関連
+        this.cameraBtn.addEventListener('click', () => this.openOcrModal());
+        this.closeOcrModal.addEventListener('click', () => this.closeOcrModal());
+        this.captureBtn.addEventListener('click', () => this.captureImage());
+        this.retakeBtn.addEventListener('click', () => this.retakeImage());
+        this.recognizeBtn.addEventListener('click', () => this.recognizeText());
+        this.editOcrBtn.addEventListener('click', () => this.editOcrText());
+        this.saveOcrBtn.addEventListener('click', () => this.saveOcrText());
+        this.cancelOcrBtn.addEventListener('click', () => this.closeOcrModal());
         
         // ライブラリ
         this.clearLibraryBtn.addEventListener('click', () => this.clearLibrary());
@@ -792,6 +823,280 @@ class TextLibrary {
         const saved = localStorage.getItem('textLibrary');
         return saved ? JSON.parse(saved) : [];
     }
+
+    // OCR機能関連メソッド
+    async openOcrModal() {
+        this.ocrModal.classList.remove('hidden');
+        await this.startCamera();
+    }
+
+    closeOcrModal() {
+        this.stopCamera();
+        this.ocrModal.classList.add('hidden');
+        this.resetOcrState();
+    }
+
+    async startCamera() {
+        try {
+            this.cameraStream = await navigator.mediaDevices.getUserMedia({
+                video: { facingMode: 'environment' }
+            });
+            this.cameraVideo.srcObject = this.cameraStream;
+        } catch (error) {
+            console.error('カメラ起動エラー:', error);
+            this.showMessage('カメラを起動できませんでした', 'error');
+            this.closeOcrModal();
+        }
+    }
+
+    stopCamera() {
+        if (this.cameraStream) {
+            this.cameraStream.getTracks().forEach(track => track.stop());
+            this.cameraStream = null;
+            this.cameraVideo.srcObject = null;
+        }
+    }
+
+    captureImage() {
+        const canvas = this.captureCanvas;
+        const video = this.cameraVideo;
+        
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0);
+        
+        this.capturedImageData = canvas.toDataURL('image/jpeg');
+        
+        // 撮影後のUI変更
+        this.cameraVideo.classList.add('hidden');
+        canvas.classList.remove('hidden');
+        this.captureBtn.classList.add('hidden');
+        this.retakeBtn.classList.remove('hidden');
+        this.recognizeBtn.classList.remove('hidden');
+    }
+
+    retakeImage() {
+        // 撮り直しのUI変更
+        this.cameraVideo.classList.remove('hidden');
+        this.captureCanvas.classList.add('hidden');
+        this.captureBtn.classList.remove('hidden');
+        this.retakeBtn.classList.add('hidden');
+        this.recognizeBtn.classList.add('hidden');
+        
+        this.capturedImageData = null;
+    }
+
+    async recognizeText() {
+        if (!this.capturedImageData) return;
+        
+        this.showOcrStatus('processing', '文字を認識中...');
+        this.recognizeBtn.disabled = true;
+        this.recognizeBtn.classList.add('ocr-processing');
+        
+        try {
+            // Canvasで画像前処理
+            const processedImage = await this.preprocessImage(this.capturedImageData);
+            
+            // Tesseract.jsでOCR実行
+            if (!this.ocrWorker) {
+                this.ocrWorker = await Tesseract.createWorker('jpn', 1, {
+                    logger: m => console.log(m)
+                });
+            }
+            
+            const { data: { text } } = await this.ocrWorker.recognize(processedImage);
+            
+            if (text.trim()) {
+                this.ocrResultText.value = text.trim();
+                this.showOcrResult();
+                this.showOcrStatus('success', '文字認識が完了しました');
+            } else {
+                this.showOcrStatus('error', '文字が認識できませんでした。もう一度撮影してください。');
+            }
+        } catch (error) {
+            console.error('OCRエラー:', error);
+            this.showOcrStatus('error', '文字認識でエラーが発生しました');
+        } finally {
+            this.recognizeBtn.disabled = false;
+            this.recognizeBtn.classList.remove('ocr-processing');
+        }
+    }
+
+    async preprocessImage(imageData) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // リサイズ（最大幅800px）
+                const maxWidth = 800;
+                let width = img.width;
+                let height = img.height;
+                
+                if (width > maxWidth) {
+                    height = (maxWidth / width) * height;
+                    width = maxWidth;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                // グレースケール変換とコントラスト調整
+                ctx.drawImage(img, 0, 0, width, height);
+                const imageData = ctx.getImageData(0, 0, width, height);
+                const data = imageData.data;
+                
+                for (let i = 0; i < data.length; i += 4) {
+                    // グレースケール変換
+                    const gray = data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114;
+                    
+                    // コントラスト調整
+                    const contrast = 1.5;
+                    const adjusted = ((gray / 255 - 0.5) * contrast + 0.5) * 255;
+                    const clamped = Math.max(0, Math.min(255, adjusted));
+                    
+                    data[i] = clamped;
+                    data[i + 1] = clamped;
+                    data[i + 2] = clamped;
+                }
+                
+                ctx.putImageData(imageData, 0, 0);
+                resolve(canvas.toDataURL('image/jpeg', 0.8));
+            };
+            img.src = imageData;
+        });
+    }
+
+    showOcrResult() {
+        this.ocrResult.classList.remove('hidden');
+        this.ocrResultText.focus();
+    }
+
+    showOcrStatus(type, message) {
+        // 既存のステータスメッセージを削除
+        const existingStatus = this.ocrModal.querySelector('.ocr-status');
+        if (existingStatus) {
+            existingStatus.remove();
+        }
+        
+        // 新しいステータスメッセージを追加
+        const statusEl = document.createElement('div');
+        statusEl.className = 'ocr-status ' + type;
+        statusEl.textContent = message;
+        
+        const ocrBody = this.ocrModal.querySelector('.ocr-body');
+        ocrBody.insertBefore(statusEl, ocrBody.firstChild);
+        
+        // 3秒後に自動削除
+        if (type !== 'processing') {
+            setTimeout(() => {
+                if (statusEl.parentNode) {
+                    statusEl.parentNode.removeChild(statusEl);
+                }
+            }, 3000);
+        }
+    }
+
+    editOcrText() {
+        this.ocrResultText.focus();
+        this.ocrResultText.select();
+    }
+
+    async saveOcrText() {
+        const text = this.ocrResultText.value.trim();
+        if (!text) {
+            this.showMessage('保存するテキストがありません', 'error');
+            return;
+        }
+        
+        // 現在のテキストとして設定
+        this.currentText = this.formatText(text);
+        this.currentTitle = 'OCR読み取り ' + new Date().toLocaleString('ja-JP');
+        
+        // 表示を更新
+        this.displayContent();
+        
+        // モーダルを閉じる
+        this.closeOcrModal();
+        
+        this.showMessage('OCR結果を表示しました。ライブラリに保存できます。', 'success');
+    }
+
+    resetOcrState() {
+        // UI状態をリセット
+        this.cameraVideo.classList.remove('hidden');
+        this.captureCanvas.classList.add('hidden');
+        this.captureBtn.classList.remove('hidden');
+        this.retakeBtn.classList.add('hidden');
+        this.recognizeBtn.classList.add('hidden');
+        this.ocrResult.classList.add('hidden');
+        
+        // データをリセット
+        this.capturedImageData = null;
+        this.ocrResultText.value = '';
+        
+        // ステータスメッセージを削除
+        statusEl.className = `ocr-status ${type}`;
+        statusEl.textContent = message;
+        
+        const ocrBody = this.ocrModal.querySelector('.ocr-body');
+        ocrBody.insertBefore(statusEl, ocrBody.firstChild);
+        
+        // 3秒後に自動削除
+        if (type !== 'processing') {
+            setTimeout(() => {
+                if (statusEl.parentNode) {
+                    statusEl.parentNode.removeChild(statusEl);
+                }
+            }, 3000);
+        }
+    }
+
+    editOcrText() {
+        this.ocrResultText.focus();
+        this.ocrResultText.select();
+    }
+
+    async saveOcrText() {
+        const text = this.ocrResultText.value.trim();
+        if (!text) {
+            this.showMessage('保存するテキストがありません', 'error');
+            return;
+        }
+        
+        // 現在のテキストとして設定
+        this.currentText = this.formatText(text);
+        this.currentTitle = `OCR読み取り ${new Date().toLocaleString('ja-JP')}`;
+        
+        // 表示を更新
+        this.displayContent();
+        
+        // モーダルを閉じる
+        this.closeOcrModal();
+        
+        this.showMessage('OCR結果を表示しました。ライブラリに保存できます。', 'success');
+    }
+
+    resetOcrState() {
+        // UI状態をリセット
+        this.cameraVideo.classList.remove('hidden');
+        this.captureCanvas.classList.add('hidden');
+        this.captureBtn.classList.remove('hidden');
+        this.retakeBtn.classList.add('hidden');
+        this.recognizeBtn.classList.add('hidden');
+        this.ocrResult.classList.add('hidden');
+        
+        // データをリセット
+        this.capturedImageData = null;
+        this.ocrResultText.value = '';
+        
+        // ステータスメッセージを削除
+        const statusMessages = this.ocrModal.querySelectorAll('.ocr-status');
+        statusMessages.forEach(msg => msg.remove());
+    }
 }
 
 // アニメーション用のCSSを動的に追加
@@ -807,7 +1112,7 @@ style.textContent = `
             transform: translateX(0);
         }
     }
-    
+
     @keyframes slideOutRight {
         from {
             opacity: 1;
