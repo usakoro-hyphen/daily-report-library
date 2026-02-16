@@ -239,6 +239,10 @@ class TextLibrary {
         if (this.clearBtn) {
             this.clearBtn.disabled = false;
         }
+        // カメラボタンも有効化
+        if (this.cameraBtn) {
+            this.cameraBtn.disabled = false;
+        }
     }
 
     disableContentActions() {
@@ -249,6 +253,10 @@ class TextLibrary {
         if (this.clearBtn) {
             this.clearBtn.disabled = true;
         }
+        // カメラボタンも無効化
+        if (this.cameraBtn) {
+            this.cameraBtn.disabled = true;
+        }
     }
 
     clearContent() {
@@ -256,7 +264,7 @@ class TextLibrary {
         this.currentTitle = '';
         
         this.documentTitle.textContent = 'ドキュメントが選択されていません';
-        this.textDisplay.innerHTML = '<p class="placeholder">読み込みボタンをクリックしてテキストファイルを読み込んでください</p><div class="placeholder-action"><button id="loadBtnInline" class="btn primary">読み込み</button></div>';
+        this.textDisplay.innerHTML = '<p class="placeholder">読み込みボタンをクリックしてテキストファイルを読み込んでください</p><div class="placeholder-action"><button id="loadBtnInline" class="btn primary">読み込み</button><button id="cameraBtn" class="btn secondary">📷 カメラで文字読み取り</button></div>';
         
         // コンテンツアクションボタンを無効化
         this.disableContentActions();
@@ -265,6 +273,12 @@ class TextLibrary {
         const newInlineBtn = document.getElementById('loadBtnInline');
         if (newInlineBtn) {
             newInlineBtn.addEventListener('click', () => this.toggleDropZone());
+        }
+        
+        // カメラボタンのイベントリスナーを再設定
+        const newCameraBtn = document.getElementById('cameraBtn');
+        if (newCameraBtn) {
+            newCameraBtn.addEventListener('click', () => this.openOcrModal());
         }
         
         this.showMessage('コンテンツをクリアしました', 'info');
