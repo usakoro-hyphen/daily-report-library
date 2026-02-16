@@ -273,12 +273,16 @@ class TextLibrary {
         const newInlineBtn = document.getElementById('loadBtnInline');
         if (newInlineBtn) {
             newInlineBtn.addEventListener('click', () => this.toggleDropZone());
+            // 参照を更新
+            this.loadBtnInline = newInlineBtn;
         }
         
         // カメラボタンのイベントリスナーを再設定
         const newCameraBtn = document.getElementById('cameraBtn');
         if (newCameraBtn) {
             newCameraBtn.addEventListener('click', () => this.openOcrModal());
+            // 参照を更新
+            this.cameraBtn = newCameraBtn;
         }
         
         this.showMessage('コンテンツをクリアしました', 'info');
