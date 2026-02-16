@@ -28,7 +28,7 @@ class TextLibrary {
         // OCR関連
         this.cameraBtn = document.getElementById('cameraBtn');
         this.ocrModal = document.getElementById('ocrModal');
-        this.closeOcrModal = document.getElementById('closeOcrModal');
+        this.closeOcrModalBtn = document.getElementById('closeOcrModal'); // 名前を変更
         this.cameraVideo = document.getElementById('cameraVideo');
         this.captureCanvas = document.getElementById('captureCanvas');
         this.captureBtn = document.getElementById('captureBtn');
@@ -847,9 +847,8 @@ class TextLibrary {
         this.ocrModal.classList.remove('hidden');
         
         // 閉じるボタンのイベントリスナーを動的に設定
-        const closeBtn = document.getElementById('closeOcrModal');
-        if (closeBtn) {
-            closeBtn.addEventListener('click', () => this.closeOcrModal());
+        if (this.closeOcrModalBtn) {
+            this.closeOcrModalBtn.addEventListener('click', () => this.closeOcrModal());
             console.log('閉じるボタンのイベントリスナーを設定しました');
         }
         
