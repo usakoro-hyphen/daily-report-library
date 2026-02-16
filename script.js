@@ -571,9 +571,9 @@ class TextLibrary {
         }
     }
 
-    clearWordLibrary() {
+    async clearWordLibrary() {
         // パスワードを要求（非表示入力）
-        const password = this.promptPassword('ワードライブラリをクリアするにはパスワードを入力してください:');
+        const password = await this.promptPassword('ワードライブラリをクリアするにはパスワードを入力してください:');
         
         if (REMOVED_CHECK) {
             if (password !== null) {
@@ -591,9 +591,9 @@ class TextLibrary {
         this.showMessage('ワードライブラリをクリアしました', 'info');
     }
 
-    clearAll() {
+    async clearAll() {
         // パスワードを要求（非表示入力）
-        const password = this.promptPassword('すべてのデータを削除するにはパスワードを入力してください:');
+        const password = await this.promptPassword('すべてのデータを削除するにはパスワードを入力してください:');
         
         if (REMOVED_CHECK) {
             if (password !== null) {
@@ -604,13 +604,15 @@ class TextLibrary {
         
         if (!confirm('本当にすべてのデータを削除しますか？\n・ワードライブラリ\n・テキストファイルライブラリ\n\nこの操作は元に戻せません。')) return;
         
-        // 両方のライブラリをクリア
+        // ワードライブラリをクリア
         this.wordLibrary = [];
-        this.library = [];
-        
-        // 保存
         this.saveWordLibrary();
+        this.updateWordLibraryDisplay();
+        
+        // テキストファイルライブラリをクリア
+        this.library = [];
         this.saveLibrary();
+        this.updateLibraryDisplay();
         
         // 表示更新
         this.updateWordLibraryDisplay();
@@ -705,9 +707,9 @@ class TextLibrary {
         }
     }
 
-    clearLibrary() {
+    async clearLibrary() {
         // パスワードを要求（非表示入力）
-        const password = this.promptPassword('ライブラリをクリアするにはパスワードを入力してください:');
+        const password = await this.promptPassword('ライブラリをクリアするにはパスワードを入力してください:');
         
         if (REMOVED_CHECK) {
             if (password !== null) {
