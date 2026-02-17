@@ -14,14 +14,13 @@
 <body>
     <header class="header">
         <h1 class="title">日報図書館</h1>
-        <button id="settingsBtn" class="btn small settings-btn" title="設定">⚙️</button>
     </header>
 
     <!-- API設定モーダル -->
     <div id="settingsModal" class="modal hidden">
         <div class="modal-content settings-modal">
             <div class="modal-header">
-                <h3>⚙️ API設定</h3>
+                <h3>⚙️ 設定</h3>
                 <button id="closeSettingsModal" class="btn close">&times;</button>
             </div>
             <div class="settings-body">
@@ -38,6 +37,24 @@
                     <button id="testApiKeyBtn" class="btn secondary">接続テスト</button>
                 </div>
                 <div id="apiTestResult" class="api-test-result hidden"></div>
+                <hr class="setting-divider">
+                <div class="setting-item">
+                    <label class="toggle-label">
+                        <span>削除ボタンを表示する</span>
+                        <input type="checkbox" id="toggleDeleteBtns">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <p class="setting-description">ONにするとライブラリの各アイテムに削除ボタンが表示されます</p>
+                </div>
+                <hr class="setting-divider">
+                <div class="setting-item">
+                    <label>一括削除</label>
+                    <div class="danger-zone">
+                        <button id="clearWordLibraryBtn" class="btn tiny danger">ワードライブラリを全て削除</button>
+                        <button id="clearLibraryBtn" class="btn tiny danger">テキストファイルライブラリを全て削除</button>
+                        <button id="clearAllBtn" class="btn tiny danger">なにもかも削除</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -140,9 +157,7 @@
     <!-- フッター -->
     <footer class="footer">
         <div class="footer-controls">
-            <button id="clearWordLibraryBtn" class="btn tiny danger">ワードライブラリを全て削除</button>
-            <button id="clearLibraryBtn" class="btn tiny danger">テキストファイルライブラリを全て削除</button>
-            <button id="clearAllBtn" class="btn tiny danger">なにもかも削除</button>
+            <button id="settingsBtn" class="btn small settings-btn" title="設定">⚙️ 設定</button>
         </div>
     </footer>
 

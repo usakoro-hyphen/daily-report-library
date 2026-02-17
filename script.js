@@ -149,6 +149,7 @@ class TextLibrary {
         this.initializeElements();
         this.bindEvents();
         this.setupRealtimeSync();
+        this.loadDeleteBtnState();
     }
 
     initializeElements() {
@@ -167,6 +168,7 @@ class TextLibrary {
         this.saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
         this.testApiKeyBtn = document.getElementById('testApiKeyBtn');
         this.apiTestResult = document.getElementById('apiTestResult');
+        this.toggleDeleteBtns = document.getElementById('toggleDeleteBtns');
 
         this.cameraBtn = document.getElementById('cameraBtn');
         this.ocrModal = document.getElementById('ocrModal');
@@ -209,6 +211,7 @@ class TextLibrary {
         this.saveApiKeyBtn.addEventListener('click', () => this.saveApiKey());
         this.testApiKeyBtn.addEventListener('click', () => this.testApiKey());
         this.toggleApiKeyVisibilityBtn.addEventListener('click', () => this.toggleApiKeyVisibility());
+        this.toggleDeleteBtns.addEventListener('change', () => this.handleDeleteBtnToggle());
 
         this.loadBtnInline.addEventListener('click', () => this.toggleDropZone());
 
@@ -580,6 +583,18 @@ class TextLibrary {
     }
 
     closeSettings() { this.settingsModal.classList.add('hidden'); this.apiTestResult.classList.add('hidden'); }
+
+    loadDeleteBtnState() {
+        const show = localStorage.getItem('showDeleteBtns') === 'true';
+        this.toggleDeleteBtns.checked = show;
+        document.body.classList.toggle('show-delete-btns', show);
+    }
+
+    handleDeleteBtnToggle() {
+        const show = this.toggleDeleteBtns.checked;
+        localStorage.setItem('showDeleteBtns', show);
+        document.body.classList.toggle('show-delete-btns', show);
+    }
 
     async saveApiKey() {
         const key = this.geminiApiKeyInput.value.trim();
