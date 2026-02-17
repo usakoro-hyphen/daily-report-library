@@ -1,3 +1,19 @@
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js';
+import { getFirestore, collection, doc, addDoc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, query, orderBy } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js';
+
+// Firebase設定
+const firebaseConfig = {
+    apiKey: "AIzaSyBQsh9Hk6GioHVLGpoIqmeD0TNmjLutOrU",
+    authDomain: "daily-report-library.firebaseapp.com",
+    projectId: "daily-report-library",
+    storageBucket: "daily-report-library.firebasestorage.app",
+    messagingSenderId: "284127164108",
+    appId: "1:284127164108:web:d07f39c7d8eedc9082f469"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
 /**
  * パスワードのSHA-256ハッシュを計算する
  */
@@ -18,13 +34,25 @@ const PASSWORD_HASH = '2fc0ab5a112e0d01518d2e2a3e4b97df5f3002f09917be92c1da90cf0
 class GeminiOCR {
     static API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
     static MODEL = 'gemini-2.0-flash';
+    static cachedApiKey = null;
 
-    static getApiKey() {
-        return localStorage.getItem('geminiApiKey') || '';
+    static async getApiKey() {
+        if (this.cachedApiKey) return this.cachedApiKey;
+        try {
+            const docSnap = await getDoc(doc(db, 'config', 'app'));
+            if (docSnap.exists() && docSnap.data().geminiApiKey) {
+                this.cachedApiKey = docSnap.data().geminiApiKey;
+                return this.cachedApiKey;
+            }
+        } catch (error) {
+            console.error('APIキー取得エラー:', error);
+        }
+        return '';
     }
 
-    static setApiKey(key) {
-        localStorage.setItem('geminiApiKey', key);
+    static async setApiKey(key) {
+        await setDoc(doc(db, 'config', 'app'), { geminiApiKey: key }, { merge: true });
+        this.cachedApiKey = key;
     }
 
     static resizeImage(imageDataUrl, maxWidth = 1600) {
@@ -51,7 +79,7 @@ class GeminiOCR {
     }
 
     static async recognize(imageDataUrl) {
-        const apiKey = this.getApiKey();
+        const apiKey = await this.getApiKey();
         if (!apiKey) {
             throw new Error('Gemini APIキーが設定されていません。設定画面からAPIキーを入力してください。');
         }
@@ -112,16 +140,15 @@ class TextLibrary {
     constructor() {
         this.currentText = '';
         this.currentTitle = '';
-        this.library = this.loadLibrary();
-        this.wordLibrary = this.loadWordLibrary();
+        this.library = [];
+        this.wordLibrary = [];
 
         this.cameraStream = null;
         this.capturedImageData = null;
 
         this.initializeElements();
         this.bindEvents();
-        this.updateLibraryDisplay();
-        this.updateWordLibraryDisplay();
+        this.setupRealtimeSync();
     }
 
     initializeElements() {
@@ -213,6 +240,26 @@ class TextLibrary {
         this.closeWordDetail.addEventListener('click', () => this.hideWordDetail());
     }
 
+    // Firestoreリアルタイム同期
+    setupRealtimeSync() {
+        const libraryQuery = query(collection(db, 'library'), orderBy('createdAt', 'desc'));
+        onSnapshot(libraryQuery, (snapshot) => {
+            this.library = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            this.updateLibraryDisplay();
+        }, (error) => {
+            console.error('ライブラリ同期エラー:', error);
+            this.showMessage('データ同期エラーが発生しました', 'error');
+        });
+
+        const wordQuery = query(collection(db, 'wordLibrary'), orderBy('lastSeen', 'desc'));
+        onSnapshot(wordQuery, (snapshot) => {
+            this.wordLibrary = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            this.updateWordLibraryDisplay();
+        }, (error) => {
+            console.error('ワードライブラリ同期エラー:', error);
+        });
+    }
+
     toggleDropZone() { this.fileInput.click(); }
 
     handleDragOver(e) { e.preventDefault(); this.dropZone.classList.add('dragover'); }
@@ -301,15 +348,21 @@ class TextLibrary {
         this.showMessage('コンテンツをクリアしました', 'info');
     }
 
-    saveToLibrary() {
+    async saveToLibrary() {
         if (!this.currentText) { this.showMessage('保存するテキストがありません', 'error'); return; }
-        const item = { id: Date.now(), title: this.currentTitle || '無題', content: this.currentText, createdAt: new Date().toISOString() };
-        this.library.push(item);
-        this.saveLibrary();
-        this.updateLibraryDisplay();
-        this.extractAndSaveWordsFromText(this.currentText, this.currentTitle);
-        this.showMessage(`「${this.currentTitle}」をライブラリに保存しました`, 'success');
-        setTimeout(() => this.clearContent(), 1000);
+        try {
+            await addDoc(collection(db, 'library'), {
+                title: this.currentTitle || '無題',
+                content: this.currentText,
+                createdAt: new Date().toISOString()
+            });
+            await this.extractAndSaveWordsFromText(this.currentText, this.currentTitle);
+            this.showMessage(`「${this.currentTitle}」をライブラリに保存しました`, 'success');
+            setTimeout(() => this.clearContent(), 1000);
+        } catch (error) {
+            console.error('保存エラー:', error);
+            this.showMessage('保存に失敗しました', 'error');
+        }
     }
 
     loadFromLibrary(item) {
@@ -322,15 +375,15 @@ class TextLibrary {
         this.extractAndSaveWordsFromText(this.currentText, this.currentTitle);
     }
 
-    deleteFromLibrary(id) {
+    async deleteFromLibrary(id) {
         if (!confirm('本当に削除しますか？')) return;
-        const index = this.library.findIndex(item => item.id === id);
-        if (index !== -1) {
-            const deletedItem = this.library[index];
-            this.library.splice(index, 1);
-            this.saveLibrary();
-            this.updateLibraryDisplay();
-            this.showMessage(`「${deletedItem.title}」を削除しました`, 'info');
+        try {
+            const item = this.library.find(item => item.id === id);
+            await deleteDoc(doc(db, 'library', id));
+            if (item) this.showMessage(`「${item.title}」を削除しました`, 'info');
+        } catch (error) {
+            console.error('削除エラー:', error);
+            this.showMessage('削除に失敗しました', 'error');
         }
     }
 
@@ -339,39 +392,62 @@ class TextLibrary {
         if (password === null) return;
         if (await hashPassword(password) !== PASSWORD_HASH) { this.showMessage('パスワードが正しくありません', 'error'); return; }
         if (!confirm('本当にライブラリをクリアしますか？この操作は元に戻せません。')) return;
-        this.library = [];
-        this.saveLibrary();
-        this.updateLibraryDisplay();
-        this.showMessage('ライブラリをクリアしました', 'info');
+        try {
+            const snapshot = await getDocs(collection(db, 'library'));
+            const deletePromises = snapshot.docs.map(d => deleteDoc(doc(db, 'library', d.id)));
+            await Promise.all(deletePromises);
+            this.showMessage('ライブラリをクリアしました', 'info');
+        } catch (error) {
+            console.error('クリアエラー:', error);
+            this.showMessage('クリアに失敗しました', 'error');
+        }
     }
 
-    extractAndSaveWordsFromText(text, title) {
+    async extractAndSaveWordsFromText(text, title) {
         const termRegex = /([^…＝\s]+)([…＝])/g;
         const matches = [...text.matchAll(termRegex)];
-        matches.forEach(match => { const word = match[1].trim(); if (word.length > 0) this.saveToWordLibrary(word, match[2], title); });
+        for (const match of matches) {
+            const word = match[1].trim();
+            if (word.length > 0) await this.saveToWordLibrary(word, match[2], title);
+        }
     }
 
-    saveToWordLibrary(word, delimiter, sourceTitle) {
+    async saveToWordLibrary(word, delimiter, sourceTitle) {
         const existingWord = this.wordLibrary.find(w => w.word === word);
         if (existingWord) {
-            existingWord.lastSeen = new Date().toISOString();
-            existingWord.delimiters = [...new Set([...existingWord.delimiters, delimiter])];
+            try {
+                await setDoc(doc(db, 'wordLibrary', existingWord.id), {
+                    ...existingWord,
+                    lastSeen: new Date().toISOString(),
+                    delimiters: [...new Set([...existingWord.delimiters, delimiter])]
+                });
+            } catch (error) {
+                console.error('ワード更新エラー:', error);
+            }
         } else {
-            this.wordLibrary.push({ id: Date.now() + Math.random(), word, delimiters: [delimiter], sourceTitle, createdAt: new Date().toISOString(), lastSeen: new Date().toISOString() });
+            try {
+                await addDoc(collection(db, 'wordLibrary'), {
+                    word,
+                    delimiters: [delimiter],
+                    sourceTitle,
+                    createdAt: new Date().toISOString(),
+                    lastSeen: new Date().toISOString()
+                });
+            } catch (error) {
+                console.error('ワード保存エラー:', error);
+            }
         }
-        this.saveWordLibrary();
-        this.updateWordLibraryDisplay();
     }
 
-    deleteFromWordLibrary(id) {
+    async deleteFromWordLibrary(id) {
         if (!confirm('本当にこの用語を削除しますか？')) return;
-        const index = this.wordLibrary.findIndex(word => word.id === id);
-        if (index !== -1) {
-            const deletedWord = this.wordLibrary[index];
-            this.wordLibrary.splice(index, 1);
-            this.saveWordLibrary();
-            this.updateWordLibraryDisplay(this.wordSearch.value);
-            this.showMessage(`「${deletedWord.word}」を削除しました`, 'info');
+        try {
+            const word = this.wordLibrary.find(w => w.id === id);
+            await deleteDoc(doc(db, 'wordLibrary', id));
+            if (word) this.showMessage(`「${word.word}」を削除しました`, 'info');
+        } catch (error) {
+            console.error('削除エラー:', error);
+            this.showMessage('削除に失敗しました', 'error');
         }
     }
 
@@ -380,10 +456,15 @@ class TextLibrary {
         if (password === null) return;
         if (await hashPassword(password) !== PASSWORD_HASH) { this.showMessage('パスワードが正しくありません', 'error'); return; }
         if (!confirm('本当にワードライブラリをクリアしますか？この操作は元に戻せません。')) return;
-        this.wordLibrary = [];
-        this.saveWordLibrary();
-        this.updateWordLibraryDisplay();
-        this.showMessage('ワードライブラリをクリアしました', 'info');
+        try {
+            const snapshot = await getDocs(collection(db, 'wordLibrary'));
+            const deletePromises = snapshot.docs.map(d => deleteDoc(doc(db, 'wordLibrary', d.id)));
+            await Promise.all(deletePromises);
+            this.showMessage('ワードライブラリをクリアしました', 'info');
+        } catch (error) {
+            console.error('クリアエラー:', error);
+            this.showMessage('クリアに失敗しました', 'error');
+        }
     }
 
     async clearAll() {
@@ -391,10 +472,20 @@ class TextLibrary {
         if (password === null) return;
         if (await hashPassword(password) !== PASSWORD_HASH) { this.showMessage('パスワードが正しくありません', 'error'); return; }
         if (!confirm('本当にすべてのデータを削除しますか？\n・ワードライブラリ\n・テキストファイルライブラリ\n\nこの操作は元に戻せません。')) return;
-        this.wordLibrary = []; this.saveWordLibrary(); this.updateWordLibraryDisplay();
-        this.library = []; this.saveLibrary(); this.updateLibraryDisplay();
-        this.clearContent();
-        this.showMessage('すべてのデータを削除しました', 'info');
+        try {
+            const libSnapshot = await getDocs(collection(db, 'library'));
+            const wordSnapshot = await getDocs(collection(db, 'wordLibrary'));
+            const deletePromises = [
+                ...libSnapshot.docs.map(d => deleteDoc(doc(db, 'library', d.id))),
+                ...wordSnapshot.docs.map(d => deleteDoc(doc(db, 'wordLibrary', d.id)))
+            ];
+            await Promise.all(deletePromises);
+            this.clearContent();
+            this.showMessage('すべてのデータを削除しました', 'info');
+        } catch (error) {
+            console.error('全削除エラー:', error);
+            this.showMessage('削除に失敗しました', 'error');
+        }
     }
 
     updateLibraryDisplay(searchTerm = '') {
@@ -469,8 +560,9 @@ class TextLibrary {
         if (!wordInfo) return '説明が見つかりませんでした。';
         const libraryItem = this.library.find(item => item.title === wordInfo.sourceTitle);
         if (!libraryItem) return '説明が見つかりませんでした。';
+        const content = libraryItem.content || '';
         const regex = new RegExp(`${this.escapeRegex(word)}[…＝](.{0,100})`, 'g');
-        const match = libraryItem.content.match(regex);
+        const match = content.match(regex);
         if (match && match.length > 0) { return match[0].replace(new RegExp(`${this.escapeRegex(word)}[…＝]`), '').trim(); }
         return '説明が見つかりませんでした。';
     }
@@ -483,17 +575,22 @@ class TextLibrary {
         if (password === null) return;
         if (await hashPassword(password) !== PASSWORD_HASH) { this.showMessage('パスワードが正しくありません', 'error'); return; }
         this.settingsModal.classList.remove('hidden');
-        const savedKey = GeminiOCR.getApiKey();
+        const savedKey = await GeminiOCR.getApiKey();
         if (savedKey) this.geminiApiKeyInput.value = savedKey;
     }
 
     closeSettings() { this.settingsModal.classList.add('hidden'); this.apiTestResult.classList.add('hidden'); }
 
-    saveApiKey() {
+    async saveApiKey() {
         const key = this.geminiApiKeyInput.value.trim();
         if (!key) { this.showMessage('APIキーを入力してください', 'error'); return; }
-        GeminiOCR.setApiKey(key);
-        this.showMessage('APIキーを保存しました', 'success');
+        try {
+            await GeminiOCR.setApiKey(key);
+            this.showMessage('APIキーを保存しました（全デバイスで共有されます）', 'success');
+        } catch (error) {
+            console.error('APIキー保存エラー:', error);
+            this.showMessage('APIキーの保存に失敗しました', 'error');
+        }
     }
 
     async testApiKey() {
@@ -579,7 +676,7 @@ class TextLibrary {
 
     async recognizeText() {
         if (!this.capturedImageData) return;
-        const apiKey = GeminiOCR.getApiKey();
+        const apiKey = await GeminiOCR.getApiKey();
         if (!apiKey) { this.showOcrStatus('error', 'APIキーが未設定です。画面上部の設定ボタンからGemini APIキーを入力してください。'); return; }
         this.recognizeBtn.disabled = true;
         this.recognizeBtn.classList.add('ocr-processing');
@@ -692,11 +789,6 @@ class TextLibrary {
         document.body.appendChild(messageEl);
         setTimeout(() => { messageEl.style.animation = 'slideOutRight 0.3s ease'; setTimeout(() => { if (messageEl.parentNode) messageEl.parentNode.removeChild(messageEl); }, 300); }, 3000);
     }
-
-    saveLibrary() { localStorage.setItem('textLibrary', JSON.stringify(this.library)); }
-    loadLibrary() { const saved = localStorage.getItem('textLibrary'); return saved ? JSON.parse(saved) : []; }
-    saveWordLibrary() { localStorage.setItem('wordLibrary', JSON.stringify(this.wordLibrary)); }
-    loadWordLibrary() { const saved = localStorage.getItem('wordLibrary'); return saved ? JSON.parse(saved) : []; }
 }
 
 const style = document.createElement('style');
