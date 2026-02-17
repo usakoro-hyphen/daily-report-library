@@ -14,7 +14,33 @@
 <body>
     <header class="header">
         <h1 class="title">日報図書館</h1>
+        <button id="settingsBtn" class="btn small settings-btn" title="設定">⚙️</button>
     </header>
+
+    <!-- API設定モーダル -->
+    <div id="settingsModal" class="modal hidden">
+        <div class="modal-content settings-modal">
+            <div class="modal-header">
+                <h3>⚙️ API設定</h3>
+                <button id="closeSettingsModal" class="btn close">&times;</button>
+            </div>
+            <div class="settings-body">
+                <div class="setting-item">
+                    <label for="geminiApiKeyInput">Gemini APIキー</label>
+                    <p class="setting-description">Google AI StudioでAPIキーを取得できます</p>
+                    <div class="api-key-input-group">
+                        <input type="password" id="geminiApiKeyInput" class="api-key-input" placeholder="APIキーを入力...">
+                        <button id="toggleApiKeyVisibility" class="btn small">👁️</button>
+                    </div>
+                </div>
+                <div class="setting-actions">
+                    <button id="saveApiKeyBtn" class="btn primary">保存</button>
+                    <button id="testApiKeyBtn" class="btn secondary">接続テスト</button>
+                </div>
+                <div id="apiTestResult" class="api-test-result hidden"></div>
+            </div>
+        </div>
+    </div>
 
     <main class="main-container">
         <!-- テキスト表示エリア -->
@@ -120,9 +146,6 @@
         </div>
     </footer>
 
-    <!-- Tesseract.js for OCR -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    
     <script src="script.js"></script>
 </body>
 </html>
