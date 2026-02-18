@@ -557,11 +557,19 @@ class TextLibrary {
         }
         // 50音フィルター適用
         if (this.activeGojuonRow && this.activeGojuonRow !== 'all') {
-            const chars = this.getGojuonChars(this.activeGojuonRow);
-            filteredWords = filteredWords.filter(word => word.word && chars.includes(word.word.charAt(0)));
+            if (this.activeGojuonRow === 'alpha') {
+                filteredWords = filteredWords.filter(word => word.word && /^[a-zA-Z]/.test(word.word.charAt(0)));
+            } else if (this.activeGojuonRow === 'numsym') {
+                filteredWords = filteredWords.filter(word => word.word && /^[^a-zA-Zぁ-んァ-ヶ]/.test(word.word.charAt(0)));
+            } else {
+                const chars = this.getGojuonChars(this.activeGojuonRow);
+                filteredWords = filteredWords.filter(word => word.word && chars.includes(word.word.charAt(0)));
+            }
         }
         if (filteredWords.length === 0) {
-            const msg = this.activeGojuonRow !== 'all' ? `「${this.activeGojuonRow}」行の用語がありません` : 'ワードライブラリに用語がありません';
+            const rowLabels = { 'alpha': 'A~Z', 'numsym': '数字/記号' };
+            const label = rowLabels[this.activeGojuonRow] || `「${this.activeGojuonRow}」行`;
+            const msg = this.activeGojuonRow !== 'all' ? `${label}の用語がありません` : 'ワードライブラリに用語がありません';
             this.wordLibraryGrid.innerHTML = `<p class="placeholder">${msg}</p>`;
             return;
         }
