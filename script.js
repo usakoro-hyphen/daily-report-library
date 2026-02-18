@@ -608,7 +608,11 @@ class TextLibrary {
         this.wordDetail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
-    hideWordDetail() { this.wordDetail.classList.add('hidden'); }
+    hideWordDetail() {
+        this.wordDetail.classList.add('hidden');
+        // ワードライブラリの検索ボックスあたりまでスクロール
+        this.wordLibraryArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 
     findWordExplanation(word) {
         const wordInfo = this.wordLibrary.find(w => w.word === word);
