@@ -134,6 +134,45 @@ class GeminiOCR {
 
         return { text, model: this.MODEL };
     }
+
+    static async getReadings(words) {
+        const apiKey = await this.getApiKey();
+        if (!apiKey || words.length === 0) return {};
+
+        const url = `${this.API_BASE}/models/${this.MODEL}:generateContent?key=${apiKey}`;
+        const wordList = words.join('、');
+        const requestBody = {
+            contents: [{
+                parts: [{
+                    text: `以下の日本語用語の読み仮名をひらがなで返してください。必ずJSON形式のみで返してください。説明や補足は不要です。
+形式: {"用語1": "よみがな1", "用語2": "よみがな2"}
+
+用語: ${wordList}`
+                }]
+            }],
+            generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 2048
+            }
+        };
+
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestBody)
+            });
+            if (!response.ok) return {};
+            const data = await response.json();
+            let text = data?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+            // JSONブロックを抽出
+            const jsonMatch = text.match(/\{[\s\S]*\}/);
+            if (jsonMatch) return JSON.parse(jsonMatch[0]);
+        } catch (error) {
+            console.error('読み仮名取得エラー:', error);
+        }
+        return {};
+    }
 }
 
 class TextLibrary {
@@ -421,36 +460,59 @@ class TextLibrary {
         }
     }
 
+    containsKanji(str) {
+        return /[\u4E00-\u9FFF]/.test(str);
+    }
+
     async extractAndSaveWordsFromText(text, title) {
         const termRegex = /([^…＝\s]+)([…＝])/g;
         const matches = [...text.matchAll(termRegex)];
-        for (const match of matches) {
+        const validMatches = matches.filter(m => m[1].trim().length > 0);
+
+        // 漢字を含む用語で、まだreadingが未設定のものを収集
+        const kanjiWords = validMatches
+            .map(m => m[1].trim())
+            .filter(w => this.containsKanji(w) && !this.wordLibrary.find(existing => existing.word === w && existing.reading));
+        const uniqueKanjiWords = [...new Set(kanjiWords)];
+
+        // 一括で読み仮名を取得
+        let readings = {};
+        if (uniqueKanjiWords.length > 0) {
+            readings = await GeminiOCR.getReadings(uniqueKanjiWords);
+        }
+
+        for (const match of validMatches) {
             const word = match[1].trim();
-            if (word.length > 0) await this.saveToWordLibrary(word, match[2], title);
+            const reading = readings[word] || '';
+            await this.saveToWordLibrary(word, match[2], title, reading);
         }
     }
 
-    async saveToWordLibrary(word, delimiter, sourceTitle) {
+    async saveToWordLibrary(word, delimiter, sourceTitle, reading = '') {
         const existingWord = this.wordLibrary.find(w => w.word === word);
         if (existingWord) {
             try {
-                await setDoc(doc(db, 'wordLibrary', existingWord.id), {
+                const updateData = {
                     ...existingWord,
                     lastSeen: new Date().toISOString(),
                     delimiters: [...new Set([...existingWord.delimiters, delimiter])]
-                });
+                };
+                if (reading && !existingWord.reading) updateData.reading = reading;
+                await setDoc(doc(db, 'wordLibrary', existingWord.id), updateData);
             } catch (error) {
                 console.error('ワード更新エラー:', error);
             }
         } else {
             try {
-                await addDoc(collection(db, 'wordLibrary'), {
+                const wordData = {
                     word,
                     delimiters: [delimiter],
                     sourceTitle,
                     createdAt: new Date().toISOString(),
                     lastSeen: new Date().toISOString()
-                });
+                };
+                if (reading) wordData.reading = reading;
+                await addDoc(collection(db, 'wordLibrary'), wordData);
             } catch (error) {
                 console.error('ワード保存エラー:', error);
             }
@@ -529,6 +591,12 @@ class TextLibrary {
         return div;
     }
 
+    // 用語のフィルター判定用の先頭文字を取得（readingがあればそちらを優先）
+    getFilterChar(word) {
+        if (word.reading) return word.reading.charAt(0);
+        return word.word ? word.word.charAt(0) : '';
+    }
+
     // 50音行のマッピング
     getGojuonChars(row) {
         const map = {
@@ -555,15 +623,24 @@ class TextLibrary {
             this.activeGojuonRow = 'all';
             this.gojuonFilter.querySelectorAll('.gojuon-btn').forEach(b => b.classList.toggle('active', b.dataset.row === 'all'));
         }
-        // 50音フィルター適用
+        // 50音フィルター適用（readingがあればそちらの先頭文字で判定）
         if (this.activeGojuonRow && this.activeGojuonRow !== 'all') {
             if (this.activeGojuonRow === 'alpha') {
-                filteredWords = filteredWords.filter(word => word.word && /^[a-zA-Z]/.test(word.word.charAt(0)));
+                filteredWords = filteredWords.filter(word => {
+                    const ch = this.getFilterChar(word);
+                    return ch && /^[a-zA-Z]/.test(ch);
+                });
             } else if (this.activeGojuonRow === 'numsym') {
-                filteredWords = filteredWords.filter(word => word.word && /^[^a-zA-Zぁ-んァ-ヶ]/.test(word.word.charAt(0)));
+                filteredWords = filteredWords.filter(word => {
+                    const ch = this.getFilterChar(word);
+                    return ch && /^[^a-zA-Zぁ-んァ-ヶ\u4E00-\u9FFF]/.test(ch);
+                });
             } else {
                 const chars = this.getGojuonChars(this.activeGojuonRow);
-                filteredWords = filteredWords.filter(word => word.word && chars.includes(word.word.charAt(0)));
+                filteredWords = filteredWords.filter(word => {
+                    const ch = this.getFilterChar(word);
+                    return ch && chars.includes(ch);
+                });
             }
         }
         if (filteredWords.length === 0) {
