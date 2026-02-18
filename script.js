@@ -243,6 +243,8 @@ class TextLibrary {
 
         this.gojuonFilter = document.getElementById('gojuonFilter');
         this.activeGojuonRow = 'all';
+        this.wordCurrentPage = 1;
+        this.wordsPerPage = 3;
 
         this.fileInput = document.getElementById('fileInput');
     }
@@ -265,6 +267,14 @@ class TextLibrary {
         this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
 
         this.saveToLibraryBtn.addEventListener('click', () => this.saveToLibrary());
+
+        // Enterキーでライブラリに保存（テキスト表示中のみ）
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.target.matches('input, textarea') && this.currentText && !this.saveToLibraryBtn.disabled) {
+                e.preventDefault();
+                this.saveToLibrary();
+            }
+        });
         this.clearBtn.addEventListener('click', () => this.clearContent());
 
         this.cameraBtn.addEventListener('click', () => this.openOcrModal());
@@ -288,9 +298,13 @@ class TextLibrary {
             this.gojuonFilter.querySelectorAll('.gojuon-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
             this.activeGojuonRow = btn.dataset.row;
+            this.wordCurrentPage = 1;
             this.wordSearch.value = '';
             this.updateWordLibraryDisplay();
         });
+        // 初期表示を「おすすめ」にする
+        this.activeGojuonRow = 'recommend';
+        this.gojuonFilter.querySelectorAll('.gojuon-btn').forEach(b => b.classList.toggle('active', b.dataset.row === 'recommend'));
 
         this.closeWordDetail.addEventListener('click', () => this.hideWordDetail());
     }
@@ -404,7 +418,9 @@ class TextLibrary {
     }
 
     async saveToLibrary() {
-        if (!this.currentText) { this.showMessage('保存するテキストがありません', 'error'); return; }
+        if (!this.currentText || this.isSaving) return;
+        this.isSaving = true;
+        this.saveToLibraryBtn.disabled = true;
         try {
             await addDoc(collection(db, 'library'), {
                 title: this.currentTitle || '無題',
@@ -417,6 +433,9 @@ class TextLibrary {
         } catch (error) {
             console.error('保存エラー:', error);
             this.showMessage('保存に失敗しました', 'error');
+            this.saveToLibraryBtn.disabled = false;
+        } finally {
+            this.isSaving = false;
         }
     }
 
@@ -616,15 +635,19 @@ class TextLibrary {
 
     updateWordLibraryDisplay(searchTerm = '') {
         this.wordLibraryGrid.innerHTML = '';
+        // 既存のページネーションを削除
+        const existingPagination = this.wordLibraryGrid.parentElement.querySelector('.word-pagination');
+        if (existingPagination) existingPagination.remove();
         let filteredWords = this.wordLibrary;
         if (searchTerm.trim()) {
             filteredWords = this.wordLibrary.filter(word => word.word.toLowerCase().includes(searchTerm.toLowerCase()));
-            // テキスト検索時は50音フィルターをリセット
+            // テキスト検索時は50音フィルターとページをリセット
             this.activeGojuonRow = 'all';
+            this.wordCurrentPage = 1;
             this.gojuonFilter.querySelectorAll('.gojuon-btn').forEach(b => b.classList.toggle('active', b.dataset.row === 'all'));
         }
-        // 50音フィルター適用（readingがあればそちらの先頭文字で判定）
-        if (this.activeGojuonRow && this.activeGojuonRow !== 'all') {
+        // 50音フィルター適用（readingがあればそちらの先頭文字で判定。おすすめは全用語対象）
+        if (this.activeGojuonRow && this.activeGojuonRow !== 'all' && this.activeGojuonRow !== 'recommend') {
             if (this.activeGojuonRow === 'alpha') {
                 filteredWords = filteredWords.filter(word => {
                     const ch = this.getFilterChar(word);
@@ -644,19 +667,57 @@ class TextLibrary {
             }
         }
         if (filteredWords.length === 0) {
-            const rowLabels = { 'alpha': 'A~Z', 'numsym': '数字/記号' };
+            const rowLabels = { 'alpha': 'A~Z', 'numsym': '数字/記号', 'recommend': 'おすすめ' };
             const label = rowLabels[this.activeGojuonRow] || `「${this.activeGojuonRow}」行`;
-            const msg = this.activeGojuonRow !== 'all' ? `${label}の用語がありません` : 'ワードライブラリに用語がありません';
+            const msg = this.activeGojuonRow !== 'all' && this.activeGojuonRow !== 'recommend' ? `${label}の用語がありません` : 'ワードライブラリに用語がありません';
             this.wordLibraryGrid.innerHTML = `<p class="placeholder">${msg}</p>`;
             return;
         }
-        let displayWords = filteredWords;
-        if (!searchTerm.trim() && this.activeGojuonRow === 'all') {
-            displayWords = this.getRandomWords(filteredWords, 3);
-        } else {
-            displayWords.sort((a, b) => a.word.localeCompare(b.word, 'ja'));
+
+        // おすすめ: ランダム3件（ページネーションなし）
+        if (this.activeGojuonRow === 'recommend') {
+            const randomWords = this.getRandomWords(filteredWords, 3);
+            randomWords.forEach(word => this.wordLibraryGrid.appendChild(this.createWordLibraryItem(word)));
+            return;
         }
-        displayWords.forEach(word => this.wordLibraryGrid.appendChild(this.createWordLibraryItem(word)));
+
+        // それ以外: ソート+ページネーション
+        let displayWords = [...filteredWords];
+        displayWords.sort((a, b) => a.word.localeCompare(b.word, 'ja'));
+
+        const totalPages = Math.ceil(displayWords.length / this.wordsPerPage);
+        if (this.wordCurrentPage > totalPages) this.wordCurrentPage = totalPages;
+        const start = (this.wordCurrentPage - 1) * this.wordsPerPage;
+        const pageWords = displayWords.slice(start, start + this.wordsPerPage);
+
+        pageWords.forEach(word => this.wordLibraryGrid.appendChild(this.createWordLibraryItem(word)));
+
+        // ページネーションボタン表示（2ページ以上ある場合）
+        if (totalPages > 1) {
+            this.renderWordPagination(totalPages);
+        }
+    }
+
+    renderWordPagination(totalPages) {
+        const paginationDiv = document.createElement('div');
+        paginationDiv.className = 'word-pagination';
+
+        for (let i = 1; i <= totalPages; i++) {
+            const btn = document.createElement('button');
+            btn.className = `pagination-btn${i === this.wordCurrentPage ? ' active' : ''}`;
+            btn.textContent = i;
+            btn.addEventListener('click', () => {
+                this.wordCurrentPage = i;
+                this.updateWordLibraryDisplay(this.wordSearch.value);
+                this.wordLibraryArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+            paginationDiv.appendChild(btn);
+        }
+
+        this.wordLibraryGrid.after(paginationDiv);
+        // 前回のページネーションを削除してから追加
+        const existing = this.wordLibraryGrid.parentElement.querySelector('.word-pagination:not(:last-of-type)');
+        if (existing) existing.remove();
     }
 
     getRandomWords(words, count) {
