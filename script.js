@@ -202,6 +202,9 @@ class TextLibrary {
         this.wordSearch = document.getElementById('wordSearch');
         this.librarySearch = document.getElementById('librarySearch');
 
+        this.gojuonFilter = document.getElementById('gojuonFilter');
+        this.activeGojuonRow = 'all';
+
         this.fileInput = document.getElementById('fileInput');
     }
 
@@ -239,6 +242,16 @@ class TextLibrary {
 
         this.wordSearch.addEventListener('input', () => this.searchWords());
         this.librarySearch.addEventListener('input', () => this.searchLibrary());
+
+        this.gojuonFilter.addEventListener('click', (e) => {
+            const btn = e.target.closest('.gojuon-btn');
+            if (!btn) return;
+            this.gojuonFilter.querySelectorAll('.gojuon-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            this.activeGojuonRow = btn.dataset.row;
+            this.wordSearch.value = '';
+            this.updateWordLibraryDisplay();
+        });
 
         this.closeWordDetail.addEventListener('click', () => this.hideWordDetail());
     }
@@ -376,6 +389,8 @@ class TextLibrary {
         this.clearBtn.disabled = false;
         this.showMessage(`「${item.title}」をライブラリから読み込みました`, 'success');
         this.extractAndSaveWordsFromText(this.currentText, this.currentTitle);
+        // コンテンツエリアまで自動スクロール
+        this.contentArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 
     async deleteFromLibrary(id) {
@@ -514,13 +529,48 @@ class TextLibrary {
         return div;
     }
 
+    // 50音行のマッピング
+    getGojuonChars(row) {
+        const map = {
+            'あ': 'あいうえおアイウエオ',
+            'か': 'かきくけこがぎぐげごカキクケコガギグゲゴ',
+            'さ': 'さしすせそざじずぜぞサシスセソザジズゼゾ',
+            'た': 'たちつてとだぢづでどタチツテトダヂヅデド',
+            'な': 'なにぬねのナニヌネノ',
+            'は': 'はひふへほばびぶべぼぱぴぷぺぽハヒフヘホバビブベボパピプペポ',
+            'ま': 'まみむめもマミムメモ',
+            'や': 'やゆよヤユヨ',
+            'ら': 'らりるれろラリルレロ',
+            'わ': 'わをんワヲン',
+        };
+        return map[row] || '';
+    }
+
     updateWordLibraryDisplay(searchTerm = '') {
         this.wordLibraryGrid.innerHTML = '';
         let filteredWords = this.wordLibrary;
-        if (searchTerm.trim()) { filteredWords = this.wordLibrary.filter(word => word.word.toLowerCase().includes(searchTerm.toLowerCase())); }
-        if (filteredWords.length === 0) { this.wordLibraryGrid.innerHTML = '<p class="placeholder">ワードライブラリに用語がありません</p>'; return; }
+        if (searchTerm.trim()) {
+            filteredWords = this.wordLibrary.filter(word => word.word.toLowerCase().includes(searchTerm.toLowerCase()));
+            // テキスト検索時は50音フィルターをリセット
+            this.activeGojuonRow = 'all';
+            this.gojuonFilter.querySelectorAll('.gojuon-btn').forEach(b => b.classList.toggle('active', b.dataset.row === 'all'));
+        }
+        // 50音フィルター適用
+        if (this.activeGojuonRow && this.activeGojuonRow !== 'all') {
+            const chars = this.getGojuonChars(this.activeGojuonRow);
+            filteredWords = filteredWords.filter(word => word.word && chars.includes(word.word.charAt(0)));
+        }
+        if (filteredWords.length === 0) {
+            const msg = this.activeGojuonRow !== 'all' ? `「${this.activeGojuonRow}」行の用語がありません` : 'ワードライブラリに用語がありません';
+            this.wordLibraryGrid.innerHTML = `<p class="placeholder">${msg}</p>`;
+            return;
+        }
         let displayWords = filteredWords;
-        if (!searchTerm.trim()) { displayWords = this.getRandomWords(filteredWords, 3); } else { displayWords.sort((a, b) => new Date(b.lastSeen) - new Date(a.lastSeen)); }
+        if (!searchTerm.trim() && this.activeGojuonRow === 'all') {
+            displayWords = this.getRandomWords(filteredWords, 3);
+        } else {
+            displayWords.sort((a, b) => a.word.localeCompare(b.word, 'ja'));
+        }
         displayWords.forEach(word => this.wordLibraryGrid.appendChild(this.createWordLibraryItem(word)));
     }
 
@@ -554,6 +604,8 @@ class TextLibrary {
             <div class="word-context"><h4>用語の説明:</h4><p>${this.escapeHtml(explanationText)}</p></div>
         `;
         this.wordDetail.classList.remove('hidden');
+        // 用語詳細エリアまで自動スクロール
+        this.wordDetail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 
     hideWordDetail() { this.wordDetail.classList.add('hidden'); }
