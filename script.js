@@ -922,7 +922,11 @@ class TextLibrary {
         this.showOcrStatus('processing', 'Gemini AIで文字認識中...');
         try {
             const result = await GeminiOCR.recognize(this.capturedImageData);
+            console.log('=== OCR raw result ===');
+            console.log(JSON.stringify(result.text));
             const filteredText = this.filterOcrRange(result.text);
+            console.log('=== OCR filtered result ===');
+            console.log(JSON.stringify(filteredText));
             if (filteredText.trim()) {
                 this.ocrResultText.value = filteredText.trim();
                 this.showOcrResult();
@@ -944,9 +948,16 @@ class TextLibrary {
         let startIdx = 0;
         let endIdx = lines.length;
         for (let i = 0; i < lines.length; i++) {
-            if (lines[i].includes('本日の気付き')) { startIdx = i + 1; }
-            if (lines[i].includes('結果') && lines[i].includes('感想')) { endIdx = i; break; }
+            const normalized = lines[i].replace(/\s/g, '');
+            if (normalized.includes('本日の気付き') || normalized.includes('本日の気づき')) {
+                startIdx = i + 1;
+            }
+            if (/結果.*感想|感想.*結果/.test(normalized)) {
+                endIdx = i;
+                break;
+            }
         }
+        console.log(`filterOcrRange: startIdx=${startIdx}, endIdx=${endIdx}, totalLines=${lines.length}`);
         return lines.slice(startIdx, endIdx).join('\n');
     }
 
