@@ -104,10 +104,7 @@ class GeminiOCR {
 - レイアウトや改行はできるだけ元の構造を保ってください
 - 読み取れない文字がある場合は「[判読不能]」と記載してください
 - テキスト以外の説明や補足は不要です。読み取ったテキストのみを出力してください
-- 日本語と英語が混在している場合は両方正確に読み取ってください
-- 「本日の気付き」という文字列が画像内にある場合、それより上（前）にあるテキストは書き起こさないでください
-- 「結果/感想」という文字列が画像内にある場合、それより下（後）にあるテキストは書き起こさないでください
-- 上記の「本日の気付き」「結果/感想」という見出し文字列自体も出力に含めないでください`
+- 日本語と英語が混在している場合は両方正確に読み取ってください`
                     }
                 ]
             }],
@@ -925,8 +922,9 @@ class TextLibrary {
         this.showOcrStatus('processing', 'Gemini AIで文字認識中...');
         try {
             const result = await GeminiOCR.recognize(this.capturedImageData);
-            if (result.text.trim()) {
-                this.ocrResultText.value = result.text.trim();
+            const filteredText = this.filterOcrRange(result.text);
+            if (filteredText.trim()) {
+                this.ocrResultText.value = filteredText.trim();
                 this.showOcrResult();
                 this.showOcrStatus('success', `文字認識完了！(Gemini ${result.model})`);
             } else {
@@ -939,6 +937,17 @@ class TextLibrary {
             this.recognizeBtn.disabled = false;
             this.recognizeBtn.classList.remove('ocr-processing');
         }
+    }
+
+    filterOcrRange(text) {
+        const lines = text.split('\n');
+        let startIdx = 0;
+        let endIdx = lines.length;
+        for (let i = 0; i < lines.length; i++) {
+            if (lines[i].includes('本日の気付き')) { startIdx = i + 1; }
+            if (lines[i].includes('結果') && lines[i].includes('感想')) { endIdx = i; break; }
+        }
+        return lines.slice(startIdx, endIdx).join('\n');
     }
 
     showOcrResult() { this.ocrResult.classList.remove('hidden'); this.ocrResultText.focus(); }
