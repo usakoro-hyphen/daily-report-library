@@ -361,7 +361,7 @@ class TextLibrary {
             .replace(/\n{2,}/g, '\n\n\n')
             .replace(/([。！？])(?=\n)/g, '$1')
             .replace(/^([・•]\s*)/gm, '• ')
-            .replace(/^(\d+)\.?\s*/gm, '$1. ')
+            .replace(/^(\d+)\.?\s+(?![…＝=])/gm, '$1. ')
             .replace(/\n{3,}/g, '\n\n===BLOCK_SEPARATOR===\n\n')
             .trim();
         this.currentText = formattedText;
@@ -377,7 +377,7 @@ class TextLibrary {
             if (block.trim()) {
                 let cleanBlock = block.trim().replace(/\n+/g, ' ').replace(/\s+/g, ' ');
                 cleanBlock = this.escapeHtml(cleanBlock);
-                cleanBlock = cleanBlock.replace(/([^…＝\s]+)([…＝])/g, '<span class="term">$1</span>$2');
+                cleanBlock = cleanBlock.replace(/([^…＝\s]+)([…＝=])/g, '<span class="term">$1</span>$2');
                 if (cleanBlock) {
                     htmlContent += `<p class="text-paragraph">${cleanBlock}</p>`;
                 }
@@ -484,8 +484,9 @@ class TextLibrary {
     }
 
     async extractAndSaveWordsFromText(text, title) {
-        const termRegex = /([^…＝\s]+)([…＝])/g;
-        const matches = [...text.matchAll(termRegex)];
+        const cleanText = text.replace(/===BLOCK_SEPARATOR===/g, ' ');
+        const termRegex = /([^…＝=\s]+)([…＝=])/g;
+        const matches = [...cleanText.matchAll(termRegex)];
         const validMatches = matches.filter(m => m[1].trim().length > 0);
 
         // 漢字を含む用語で、まだreadingが未設定のものを収集
@@ -635,9 +636,8 @@ class TextLibrary {
 
     updateWordLibraryDisplay(searchTerm = '') {
         this.wordLibraryGrid.innerHTML = '';
-        // 既存のページネーションを削除
-        const existingPagination = this.wordLibraryGrid.parentElement.querySelector('.word-pagination');
-        if (existingPagination) existingPagination.remove();
+        // ページネーションをクリア
+        document.getElementById('wordPaginationContainer').innerHTML = '';
         let filteredWords = this.wordLibrary;
         if (searchTerm.trim()) {
             filteredWords = this.wordLibrary.filter(word => word.word.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -699,25 +699,47 @@ class TextLibrary {
     }
 
     renderWordPagination(totalPages) {
+        const container = document.getElementById('wordPaginationContainer');
+        container.innerHTML = '';
         const paginationDiv = document.createElement('div');
         paginationDiv.className = 'word-pagination';
 
-        for (let i = 1; i <= totalPages; i++) {
+        const goToPage = (page) => {
+            this.wordCurrentPage = page;
+            this.updateWordLibraryDisplay(this.wordSearch.value);
+        };
+
+        const addBtn = (text, page, isActive = false, isDisabled = false) => {
             const btn = document.createElement('button');
-            btn.className = `pagination-btn${i === this.wordCurrentPage ? ' active' : ''}`;
-            btn.textContent = i;
-            btn.addEventListener('click', () => {
-                this.wordCurrentPage = i;
-                this.updateWordLibraryDisplay(this.wordSearch.value);
-                this.wordLibraryArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            });
+            btn.className = `pagination-btn${isActive ? ' active' : ''}`;
+            btn.textContent = text;
+            btn.disabled = isDisabled;
+            if (!isDisabled) btn.addEventListener('click', () => goToPage(page));
             paginationDiv.appendChild(btn);
+        };
+
+        const current = this.wordCurrentPage;
+        const atFirst = current === 1;
+        const atLast = current === totalPages;
+
+        // 最初へ / 前へ
+        addBtn('«', 1, false, atFirst);
+        addBtn('‹', current - 1, false, atFirst);
+
+        // ページ番号（最大5つ、現在ページ中心）
+        let startPage = Math.max(1, current - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        startPage = Math.max(1, endPage - 4);
+
+        for (let i = startPage; i <= endPage; i++) {
+            addBtn(i, i, i === current);
         }
 
-        this.wordLibraryGrid.after(paginationDiv);
-        // 前回のページネーションを削除してから追加
-        const existing = this.wordLibraryGrid.parentElement.querySelector('.word-pagination:not(:last-of-type)');
-        if (existing) existing.remove();
+        // 次へ / 最後へ
+        addBtn('›', current + 1, false, atLast);
+        addBtn('»', totalPages, false, atLast);
+
+        container.appendChild(paginationDiv);
     }
 
     getRandomWords(words, count) {
@@ -766,9 +788,9 @@ class TextLibrary {
         const libraryItem = this.library.find(item => item.title === wordInfo.sourceTitle);
         if (!libraryItem) return '説明が見つかりませんでした。';
         const content = libraryItem.content || '';
-        const regex = new RegExp(`${this.escapeRegex(word)}[…＝](.{0,100})`, 'g');
+        const regex = new RegExp(`${this.escapeRegex(word)}[…＝=](.{0,100})`, 'g');
         const match = content.match(regex);
-        if (match && match.length > 0) { return match[0].replace(new RegExp(`${this.escapeRegex(word)}[…＝]`), '').trim(); }
+        if (match && match.length > 0) { return match[0].replace(new RegExp(`${this.escapeRegex(word)}[…＝=]`), '').trim(); }
         return '説明が見つかりませんでした。';
     }
 
