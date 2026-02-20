@@ -438,7 +438,7 @@ class TextLibrary {
     clearContent() {
         this.currentText = '';
         this.currentTitle = '';
-        this.documentTitle.textContent = '読み込み・保存';
+        this.documentTitle.textContent = '読み込み/保存';
         this.textDisplay.contentEditable = false;
         this.textDisplay.classList.remove('editable');
         this.textDisplay.innerHTML = '<p class="placeholder">読み込みボタンをクリックして.txtファイルを読み込んでください</p><div class="placeholder-action"><button id="loadBtnInline" class="btn primary">読み込み</button><button id="cameraBtn" class="btn secondary">📷 カメラで文字読み取り</button></div>';
