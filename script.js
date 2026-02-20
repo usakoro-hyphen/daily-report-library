@@ -846,11 +846,11 @@ class TextLibrary {
         this.wordDetailTitle.textContent = word.word;
         const explanationText = this.findWordExplanation(word.word);
         this.wordDetailContent.innerHTML = `
-            <div class="word-info">
-                <p><strong>ソース:</strong> ${this.escapeHtml(word.sourceTitle || '不明')}</p>
-                <p><strong>最終確認:</strong> ${this.formatDate(word.lastSeen)}</p>
+            <div class="word-context"><p>${this.escapeHtml(explanationText)}</p></div>
+            <div class="word-meta">
+                <p>ソース: ${this.escapeHtml(word.sourceTitle || '不明')}</p>
+                <p>最終確認: ${this.formatDate(word.lastSeen)}</p>
             </div>
-            <div class="word-context"><h4>用語の説明:</h4><p>${this.escapeHtml(explanationText)}</p></div>
         `;
         this.wordDetail.classList.remove('hidden');
         // 用語詳細エリアまで自動スクロール

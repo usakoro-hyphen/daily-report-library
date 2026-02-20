@@ -568,6 +568,12 @@ body {
     margin: 0.5rem 0;
 }
 
+.word-meta {
+    font-size: 0.85rem;
+    color: #9ca3af;
+    margin-top: 0.75rem;
+}
+
 .word-delimiters {
     font-size: 0.8rem;
     color: #6b7280;
