@@ -978,6 +978,7 @@ class TextLibrary {
         console.log(`filterOcrRange: startIdx=${startIdx}, endIdx=${endIdx}, totalLines=${lines.length}`);
         const filtered = lines.slice(startIdx, endIdx)
             .map(line => line.replace(/^[･・•·‧∙●◦◆■□▪▫]\s*/u, ''))
+            .map(line => line.replace(/\.{2,}/g, '…'))
             .map(line => line.replace(/([…＝])\s+/g, '$1'));
         return filtered.join('\n');
     }
