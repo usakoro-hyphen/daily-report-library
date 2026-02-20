@@ -1081,6 +1081,96 @@ body.edit-mode .library-item-actions {
     border-radius: 10px;
 }
 
+/* 使い方モーダル */
+.help-modal {
+    max-width: 600px;
+    width: 90%;
+    max-height: 85vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.help-body {
+    overflow-y: auto;
+    padding: 1rem;
+    flex: 1;
+    min-height: 0;
+}
+
+.help-section {
+    margin-bottom: 1.25rem;
+}
+
+.help-section:last-child {
+    margin-bottom: 0;
+}
+
+.help-heading {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #2f80ed;
+    margin-bottom: 0.5rem;
+    padding-left: 0.5rem;
+    border-left: 3px solid #56ccf2;
+}
+
+.help-body p {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: #555;
+    margin: 0;
+}
+
+.help-body ul {
+    margin: 0;
+    padding-left: 1.25rem;
+    list-style: disc;
+}
+
+.help-body li {
+    font-size: 0.95rem;
+    line-height: 1.7;
+    color: #555;
+    margin-bottom: 0.25rem;
+}
+
+.help-body li strong {
+    color: #333;
+}
+
+.help-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+.help-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 10px;
+}
+
+.help-body::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #56ccf2, #2f80ed);
+    border-radius: 10px;
+}
+
+/* APIキーロック */
+.api-key-locked .locked-message {
+    font-size: 0.85rem;
+    color: #888;
+    margin: 0 0 0.5rem 0;
+    font-style: italic;
+}
+
+/* 使い方ボタン */
+.help-btn {
+    background: linear-gradient(135deg, #a78bfa, #7c3aed) !important;
+    color: white !important;
+    border: none !important;
+}
+
+.help-btn:hover {
+    box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+}
+
 /* ユーティリティ */
 .hidden {
     display: none !important;

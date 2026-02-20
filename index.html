@@ -27,12 +27,21 @@
                 <div class="setting-item">
                     <label for="geminiApiKeyInput">Gemini APIキー</label>
                     <p class="setting-description">Google AI StudioでAPIキーを取得できます</p>
-                    <div class="api-key-input-group">
-                        <input type="password" id="geminiApiKeyInput" class="api-key-input" placeholder="APIキーを入力...">
-                        <button id="toggleApiKeyVisibility" class="btn small">👁️</button>
+                    <div id="apiKeyLocked" class="api-key-locked">
+                        <p class="locked-message">APIキーの確認・編集にはパスワードが必要です（いつものやつ）</p>
+                        <div class="api-key-input-group">
+                            <input type="password" id="apiKeyPasswordInput" class="api-key-input" placeholder="パスワードを入力...">
+                            <button id="unlockApiKeyBtn" class="btn small primary">解除</button>
+                        </div>
+                    </div>
+                    <div id="apiKeyUnlocked" class="api-key-unlocked hidden">
+                        <div class="api-key-input-group">
+                            <input type="password" id="geminiApiKeyInput" class="api-key-input" placeholder="APIキーを入力...">
+                            <button id="toggleApiKeyVisibility" class="btn small">👁️</button>
+                        </div>
                     </div>
                 </div>
-                <div class="setting-actions">
+                <div id="apiKeyActions" class="setting-actions hidden">
                     <button id="saveApiKeyBtn" class="btn primary">保存</button>
                     <button id="testApiKeyBtn" class="btn secondary">接続テスト</button>
                 </div>
@@ -127,6 +136,61 @@
             </div>
         </div>
 
+        <!-- 使い方モーダル -->
+        <div id="helpModal" class="modal hidden">
+            <div class="modal-content help-modal">
+                <div class="modal-header">
+                    <h3>使い方ガイド</h3>
+                    <button id="closeHelpModal" class="btn small secondary">×</button>
+                </div>
+                <div class="help-body">
+                    <div class="help-section">
+                        <h4 class="help-heading">この図書館について</h4>
+                        <p>日報図書館は、過去に勉強したことを思い出すための場所です。自分が追加した知識はもちろん、他の人が追加した新たな知識にも出会えます。</p>
+                    </div>
+                    <div class="help-section">
+                        <h4 class="help-heading">ファイルの読み込み方法</h4>
+                        <ul>
+                            <li><strong>.txtファイル</strong>: 「読み込み」ボタンまたはドラッグ&ドロップで読み込めます</li>
+                            <li><strong>カメラ読み取り</strong>: 「カメラで文字読み取り」ボタンから撮影すると、AIが文字を認識します</li>
+                        </ul>
+                    </div>
+                    <div class="help-section">
+                        <h4 class="help-heading">カメラ読み取りの判定基準</h4>
+                        <ul>
+                            <li>写真内の<strong>「本日の気付き」</strong>から<strong>「結果/感想」</strong>の間のテキストが抽出されます</li>
+                            <li>黒い太い横線がある場合は、線と線の間のテキストのみ読み取ります</li>
+                            <li>読み取り後、テキストを手動で編集することもできます</li>
+                        </ul>
+                    </div>
+                    <div class="help-section">
+                        <h4 class="help-heading">用語として保存される条件</h4>
+                        <ul>
+                            <li>テキスト中の <strong>「用語…説明」</strong> または <strong>「用語＝説明」</strong> の形式が自動認識されます</li>
+                            <li><strong>…</strong>（三点リーダー）や <strong>＝</strong>（全角イコール）が区切り記号です</li>
+                            <li>漢字を含む用語は読み仮名が自動取得され、五十音フィルターで検索できます</li>
+                        </ul>
+                    </div>
+                    <div class="help-section">
+                        <h4 class="help-heading">ライブラリの使い方</h4>
+                        <ul>
+                            <li><strong>ワードライブラリ</strong>: 抽出された用語の一覧。五十音やキーワードで検索できます</li>
+                            <li><strong>テキストファイルライブラリ</strong>: 保存したファイルの一覧。タップで内容を閲覧できます</li>
+                            <li>設定から「編集モード」をONにすると、保存済みの内容を編集できます</li>
+                        </ul>
+                    </div>
+                    <div class="help-section">
+                        <h4 class="help-heading">設定について</h4>
+                        <ul>
+                            <li><strong>Gemini APIキー</strong>: カメラ読み取りに必要です（Google AI Studioで無料取得可）</li>
+                            <li><strong>削除ボタン表示</strong>: ONにすると各アイテムに削除ボタンが出ます</li>
+                            <li><strong>編集モード</strong>: ONにすると保存済みアイテムの編集が可能になります</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ファイル閲覧モーダル -->
         <div id="fileViewModal" class="modal hidden">
             <div class="modal-content file-view-modal">
@@ -194,6 +258,7 @@
     <!-- フッター -->
     <footer class="footer">
         <div class="footer-controls">
+            <button id="helpBtn" class="btn small help-btn" title="使い方">❓ 使い方</button>
             <button id="settingsBtn" class="btn small settings-btn" title="設定">⚙️ 設定</button>
         </div>
     </footer>

@@ -26,6 +26,7 @@ async function hashPassword(password) {
 }
 
 const PASSWORD_HASH = '2fc0ab5a112e0d01518d2e2a3e4b97df5f3002f09917be92c1da90cf007a72c6';
+const APIKEY_PASSWORD_HASH = '1ea4e50a12ad6f9e31c1683b84c9ec9fb001b2563542c715c0a41bf296af2c03';
 
 /**
  * Gemini Vision OCRクラス
@@ -257,6 +258,16 @@ class TextLibrary {
 
         this.fileInput = document.getElementById('fileInput');
 
+        this.helpBtn = document.getElementById('helpBtn');
+        this.helpModal = document.getElementById('helpModal');
+        this.closeHelpModalBtn = document.getElementById('closeHelpModal');
+
+        this.apiKeyLocked = document.getElementById('apiKeyLocked');
+        this.apiKeyUnlocked = document.getElementById('apiKeyUnlocked');
+        this.apiKeyActions = document.getElementById('apiKeyActions');
+        this.apiKeyPasswordInput = document.getElementById('apiKeyPasswordInput');
+        this.unlockApiKeyBtn = document.getElementById('unlockApiKeyBtn');
+
         this.fileViewModal = document.getElementById('fileViewModal');
         this.fileViewTitle = document.getElementById('fileViewTitle');
         this.fileViewContent = document.getElementById('fileViewContent');
@@ -271,6 +282,13 @@ class TextLibrary {
         this.toggleApiKeyVisibilityBtn.addEventListener('click', () => this.toggleApiKeyVisibility());
         this.toggleDeleteBtns.addEventListener('change', () => this.handleDeleteBtnToggle());
         this.toggleEditMode.addEventListener('change', () => this.handleEditModeToggle());
+
+        this.helpBtn.addEventListener('click', () => this.helpModal.classList.remove('hidden'));
+        this.closeHelpModalBtn.addEventListener('click', () => this.helpModal.classList.add('hidden'));
+        this.helpModal.addEventListener('click', (e) => { if (e.target === this.helpModal) this.helpModal.classList.add('hidden'); });
+
+        this.unlockApiKeyBtn.addEventListener('click', () => this.unlockApiKey());
+        this.apiKeyPasswordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') this.unlockApiKey(); });
 
         this.closeFileViewModalBtn.addEventListener('click', () => this.fileViewModal.classList.add('hidden'));
         this.fileViewModal.addEventListener('click', (e) => { if (e.target === this.fileViewModal) this.fileViewModal.classList.add('hidden'); });
@@ -917,11 +935,39 @@ class TextLibrary {
         if (password === null) return;
         if (await hashPassword(password) !== PASSWORD_HASH) { this.showMessage('パスワードが正しくありません', 'error'); return; }
         this.settingsModal.classList.remove('hidden');
+        // APIキー欄をロック状態にリセット
+        this.apiKeyLocked.classList.remove('hidden');
+        this.apiKeyUnlocked.classList.add('hidden');
+        this.apiKeyActions.classList.add('hidden');
+        this.apiKeyPasswordInput.value = '';
+        this.geminiApiKeyInput.value = '';
+    }
+
+    closeSettings() {
+        this.settingsModal.classList.add('hidden');
+        this.apiTestResult.classList.add('hidden');
+        // APIキー欄をロック状態に戻す
+        this.apiKeyLocked.classList.remove('hidden');
+        this.apiKeyUnlocked.classList.add('hidden');
+        this.apiKeyActions.classList.add('hidden');
+        this.apiKeyPasswordInput.value = '';
+        this.geminiApiKeyInput.value = '';
+    }
+
+    async unlockApiKey() {
+        const password = this.apiKeyPasswordInput.value;
+        if (!password) return;
+        if (await hashPassword(password) !== APIKEY_PASSWORD_HASH) {
+            this.showMessage('パスワードが正しくありません', 'error');
+            this.apiKeyPasswordInput.value = '';
+            return;
+        }
+        this.apiKeyLocked.classList.add('hidden');
+        this.apiKeyUnlocked.classList.remove('hidden');
+        this.apiKeyActions.classList.remove('hidden');
         const savedKey = await GeminiOCR.getApiKey();
         if (savedKey) this.geminiApiKeyInput.value = savedKey;
     }
-
-    closeSettings() { this.settingsModal.classList.add('hidden'); this.apiTestResult.classList.add('hidden'); }
 
     loadDeleteBtnState() {
         const show = localStorage.getItem('showDeleteBtns') === 'true';
