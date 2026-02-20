@@ -102,7 +102,8 @@ class GeminiOCR {
 ルール:
 - 画像内のテキストをそのまま忠実に書き起こしてください
 - レイアウトや改行はできるだけ元の構造を保ってください
-- テキストの段落間に空白行がある場合は、出力でも空白行を保持してください
+- 重要: 各項目（各用語の説明）の間には必ず空行（空の行）を1行入れてください。項目の区切りを明確にしてください
+- 段落間や項目間にスペースがある場合は、出力でも必ず空行を保持してください
 - 読み取れない文字がある場合は「[判読不能]」と記載してください
 - テキスト以外の説明や補足は不要です。読み取ったテキストのみを出力してください
 - 日本語と英語が混在している場合は両方正確に読み取ってください
@@ -954,7 +955,10 @@ class TextLibrary {
             }
         } catch (error) {
             console.error('OCRエラー:', error);
-            this.showOcrStatus('error', error.message || '文字認識でエラーが発生しました');
+            const userMessage = error.message?.includes('Gemini API')
+                ? 'Gemini APIエラーです。1分ほど待ってから再度撮影をお願いします。'
+                : (error.message || '文字認識でエラーが発生しました');
+            this.showOcrStatus('error', userMessage);
         } finally {
             this.recognizeBtn.disabled = false;
             this.recognizeBtn.classList.remove('ocr-processing');
@@ -976,11 +980,20 @@ class TextLibrary {
             }
         }
         console.log(`filterOcrRange: startIdx=${startIdx}, endIdx=${endIdx}, totalLines=${lines.length}`);
-        const filtered = lines.slice(startIdx, endIdx)
+        const cleaned = lines.slice(startIdx, endIdx)
             .map(line => line.replace(/^[･・•·‧∙●◦◆■□▪▫]\s*/u, ''))
             .map(line => line.replace(/\.{2,}/g, '…'))
             .map(line => line.replace(/([…＝])\s+/g, '$1'));
-        return filtered.join('\n');
+        // 用語行（…や＝を含む行）の前に空行がなければ挿入
+        const result = [];
+        for (let i = 0; i < cleaned.length; i++) {
+            const line = cleaned[i];
+            if (i > 0 && /[…＝=]/.test(line) && cleaned[i - 1].trim() !== '') {
+                result.push('');
+            }
+            result.push(line);
+        }
+        return result.join('\n');
     }
 
     showOcrResult() { this.ocrResult.classList.remove('hidden'); this.ocrResultText.focus(); }

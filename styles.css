@@ -130,6 +130,18 @@ body {
     box-shadow: none;
 }
 
+#saveOcrBtn {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+}
+
+#saveOcrBtn:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+}
+
 .btn.danger {
     background: #ef4444;
     color: white;
