@@ -102,9 +102,11 @@ class GeminiOCR {
 ルール:
 - 画像内のテキストをそのまま忠実に書き起こしてください
 - レイアウトや改行はできるだけ元の構造を保ってください
+- テキストの段落間に空白行がある場合は、出力でも空白行を保持してください
 - 読み取れない文字がある場合は「[判読不能]」と記載してください
 - テキスト以外の説明や補足は不要です。読み取ったテキストのみを出力してください
-- 日本語と英語が混在している場合は両方正確に読み取ってください`
+- 日本語と英語が混在している場合は両方正確に読み取ってください
+- 画像内に黒い太い横線（黒い帯）がある場合は、黒い帯と黒い帯の間にあるテキストのみを書き起こしてください。黒い帯の外側にあるテキストは無視してください`
                     }
                 ]
             }],
@@ -366,10 +368,10 @@ class TextLibrary {
             .trim();
         this.currentText = formattedText;
         this.currentTitle = filename;
-        this.displayContent();
+        this.displayContent(true);
     }
 
-    displayContent() {
+    displayContent(editable = false) {
         this.documentTitle.textContent = this.currentTitle;
         const blocks = this.currentText.split('===BLOCK_SEPARATOR===');
         let htmlContent = '';
@@ -387,6 +389,15 @@ class TextLibrary {
             }
         });
         this.textDisplay.innerHTML = htmlContent;
+        this.textDisplay.contentEditable = editable;
+        if (editable) {
+            this.textDisplay.classList.add('editable');
+            this.textDisplay.addEventListener('input', () => {
+                this.currentText = this.textDisplay.innerText.trim();
+            }, { once: false });
+        } else {
+            this.textDisplay.classList.remove('editable');
+        }
         this.enableContentActions();
         this.textDisplay.classList.add('slide-up');
         setTimeout(() => this.textDisplay.classList.remove('slide-up'), 300);
@@ -408,6 +419,8 @@ class TextLibrary {
         this.currentText = '';
         this.currentTitle = '';
         this.documentTitle.textContent = 'ドキュメントが選択されていません';
+        this.textDisplay.contentEditable = false;
+        this.textDisplay.classList.remove('editable');
         this.textDisplay.innerHTML = '<p class="placeholder">読み込みボタンをクリックしてテキストファイルを読み込んでください</p><div class="placeholder-action"><button id="loadBtnInline" class="btn primary">読み込み</button><button id="cameraBtn" class="btn secondary">📷 カメラで文字読み取り</button></div>';
         this.disableContentActions();
         const newInlineBtn = document.getElementById('loadBtnInline');
@@ -428,6 +441,8 @@ class TextLibrary {
                 createdAt: new Date().toISOString()
             });
             await this.extractAndSaveWordsFromText(this.currentText, this.currentTitle);
+            this.textDisplay.contentEditable = false;
+            this.textDisplay.classList.remove('editable');
             this.showMessage(`「${this.currentTitle}」をライブラリに保存しました`, 'success');
             setTimeout(() => this.clearContent(), 1000);
         } catch (error) {
@@ -958,7 +973,9 @@ class TextLibrary {
             }
         }
         console.log(`filterOcrRange: startIdx=${startIdx}, endIdx=${endIdx}, totalLines=${lines.length}`);
-        return lines.slice(startIdx, endIdx).join('\n');
+        const filtered = lines.slice(startIdx, endIdx)
+            .map(line => line.replace(/^[･・•·‧∙●◦◆■□▪▫]\s*/u, ''));
+        return filtered.join('\n');
     }
 
     showOcrResult() { this.ocrResult.classList.remove('hidden'); this.ocrResultText.focus(); }
@@ -981,7 +998,7 @@ class TextLibrary {
         if (!text) { this.showMessage('保存するテキストがありません', 'error'); return; }
         this.currentText = this.formatText(text);
         this.currentTitle = 'OCR読み取り ' + new Date().toLocaleString('ja-JP');
-        this.displayContent();
+        this.displayContent(true);
         this.closeOcrModal();
         this.showMessage('OCR結果を表示しました。ライブラリに保存できます。', 'success');
     }
@@ -1004,7 +1021,7 @@ class TextLibrary {
         return text.substring(0, 100).replace(/\n/g, ' ') + (text.length > 100 ? '...' : '');
     }
 
-    formatText(text) { return text.trim().replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n'); }
+    formatText(text) { return text.trim().replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').replace(/\n\n/g, '\n\n===BLOCK_SEPARATOR===\n\n'); }
 
     formatDate(dateString) {
         return new Date(dateString).toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric' });

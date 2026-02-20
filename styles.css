@@ -270,6 +270,17 @@ body {
     background: linear-gradient(135deg, #4fb3d9, #2468d4);
 }
 
+.text-display.editable {
+    border: 2px dashed #56ccf2;
+    cursor: text;
+}
+
+.text-display.editable:focus {
+    outline: none;
+    border-color: #2f80ed;
+    background: #f5faff;
+}
+
 .text-paragraph {
     margin: 0.5rem 0;
     text-indent: 0;
