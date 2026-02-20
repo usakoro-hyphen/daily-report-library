@@ -902,14 +902,12 @@ class TextLibrary {
     }
 
     loadEditModeState() {
-        const show = localStorage.getItem('editMode') === 'true';
-        this.toggleEditMode.checked = show;
-        document.body.classList.toggle('edit-mode', show);
+        this.toggleEditMode.checked = false;
+        document.body.classList.remove('edit-mode');
     }
 
     handleEditModeToggle() {
         const show = this.toggleEditMode.checked;
-        localStorage.setItem('editMode', show);
         document.body.classList.toggle('edit-mode', show);
         this.updateLibraryDisplay(this.librarySearch.value);
         this.updateWordLibraryDisplay(this.wordSearch.value);
