@@ -225,8 +225,8 @@ body {
 .content-area {
     background: rgba(255, 255, 255, 0.95);
     backdrop-filter: blur(10px);
-    border-radius: 20px;
-    padding: 2rem;
+    border-radius: 16px;
+    padding: 1.25rem;
     box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
     margin-bottom: 2rem;
 }
@@ -235,13 +235,13 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 2rem;
-    padding-bottom: 1rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
     border-bottom: 2px solid #f0f0f0;
 }
 
 .document-title {
-    font-size: 1.5rem;
+    font-size: 1.2rem;
     font-weight: 700;
     color: #333;
 }
@@ -321,7 +321,7 @@ body {
     color: #999;
     font-style: italic;
     text-align: center;
-    padding: 3rem;
+    padding: 1.5rem;
 }
 
 .placeholder-action {
@@ -330,9 +330,9 @@ body {
 }
 
 .placeholder-action .btn {
-    padding: 1.125rem 2.25rem;
-    font-size: 1.35rem;
-    border-radius: 18px;
+    padding: 0.85rem 1.75rem;
+    font-size: 1.1rem;
+    border-radius: 14px;
     transform: scale(1);
     transition: all 0.3s ease;
 }
