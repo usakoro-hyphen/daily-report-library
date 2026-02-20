@@ -500,8 +500,11 @@ class TextLibrary {
 
     async extractAndSaveWordsFromText(text, title) {
         const cleanText = text.replace(/===BLOCK_SEPARATOR===/g, ' ');
+        console.log('=== extractAndSaveWordsFromText ===');
+        console.log('cleanText:', JSON.stringify(cleanText));
         const termRegex = /([^…＝=\s]+)([…＝=])/g;
         const matches = [...cleanText.matchAll(termRegex)];
+        console.log('matches found:', matches.length, matches.map(m => `"${m[1]}" + "${m[2]}"`));
         const validMatches = matches.filter(m => m[1].trim().length > 0);
 
         // 漢字を含む用語で、まだreadingが未設定のものを収集
