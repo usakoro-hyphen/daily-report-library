@@ -869,10 +869,13 @@ class TextLibrary {
         const libraryItem = this.library.find(item => item.title === wordInfo.sourceTitle);
         if (!libraryItem) return '説明が見つかりませんでした。';
         const content = libraryItem.content || '';
-        const regex = new RegExp(`${this.escapeRegex(word)}[…＝=](.{0,100})`, 'g');
-        const match = content.match(regex);
-        if (match && match.length > 0) { return match[0].replace(new RegExp(`${this.escapeRegex(word)}[…＝=]`), '').trim(); }
-        return '説明が見つかりませんでした。';
+        const escapedWord = this.escapeRegex(word);
+        const idx = content.search(new RegExp(`${escapedWord}[…＝=]`));
+        if (idx === -1) return '説明が見つかりませんでした。';
+        const afterDelimiter = content.substring(idx).replace(new RegExp(`^${escapedWord}[…＝=]`), '');
+        const endMatch = afterDelimiter.search(/===BLOCK_SEPARATOR===|(?=\S+[…＝=])/);
+        const explanation = endMatch === -1 ? afterDelimiter : afterDelimiter.substring(0, endMatch);
+        return explanation.trim() || '説明が見つかりませんでした。';
     }
 
     searchWords() { this.updateWordLibraryDisplay(this.wordSearch.value); }
