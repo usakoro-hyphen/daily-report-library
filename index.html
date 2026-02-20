@@ -25,13 +25,11 @@
             </div>
             <div class="settings-body">
                 <div class="setting-item">
-                    <label for="geminiApiKeyInput">Gemini APIキー</label>
-                    <p class="setting-description">Google AI StudioでAPIキーを取得できます</p>
+                    <label>Gemini APIキー</label>
                     <div id="apiKeyLocked" class="api-key-locked">
-                        <p class="locked-message">APIキーの確認・編集にはパスワードが必要です（いつものやつ）</p>
                         <div class="api-key-input-group">
                             <input type="password" id="apiKeyPasswordInput" class="api-key-input" placeholder="パスワードを入力...">
-                            <button id="unlockApiKeyBtn" class="btn small primary">解除</button>
+                            <button id="unlockApiKeyBtn" class="btn small primary">決定</button>
                         </div>
                     </div>
                     <div id="apiKeyUnlocked" class="api-key-unlocked hidden">
@@ -182,7 +180,6 @@
                     <div class="help-section">
                         <h4 class="help-heading">設定について</h4>
                         <ul>
-                            <li><strong>Gemini APIキー</strong>: カメラ読み取りに必要です（Google AI Studioで無料取得可）</li>
                             <li><strong>削除ボタン表示</strong>: ONにすると各アイテムに削除ボタンが出ます</li>
                             <li><strong>編集モード</strong>: ONにすると保存済みアイテムの編集が可能になります</li>
                         </ul>
