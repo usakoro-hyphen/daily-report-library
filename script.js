@@ -854,7 +854,7 @@ class TextLibrary {
         `;
         this.wordDetail.classList.remove('hidden');
         // 用語詳細エリアまで自動スクロール
-        this.wordDetail.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        this.wordDetail.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
     hideWordDetail() {
