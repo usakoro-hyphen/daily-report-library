@@ -379,7 +379,7 @@ class TextLibrary {
         this.displayContent(true);
     }
 
-    displayContent(editable = false) {
+    displayContent(editable = false, highlightTerm = '') {
         this.documentTitle.textContent = this.currentTitle;
         const blocks = this.currentText.split('===BLOCK_SEPARATOR===');
         let htmlContent = '';
@@ -388,6 +388,10 @@ class TextLibrary {
                 let cleanBlock = block.trim().replace(/\n+/g, ' ').replace(/\s+/g, ' ');
                 cleanBlock = this.escapeHtml(cleanBlock);
                 cleanBlock = cleanBlock.replace(/([^…＝\s]+)([…＝=])/g, '<span class="term">$1</span>$2');
+                if (highlightTerm) {
+                    const escaped = highlightTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    cleanBlock = cleanBlock.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="search-highlight">$1</mark>');
+                }
                 if (cleanBlock) {
                     htmlContent += `<p class="text-paragraph">${cleanBlock}</p>`;
                 }
@@ -465,7 +469,8 @@ class TextLibrary {
     loadFromLibrary(item) {
         this.currentText = item.content || item.text || '';
         this.currentTitle = item.title;
-        this.displayContent();
+        const searchTerm = this.librarySearch.value.trim();
+        this.displayContent(false, searchTerm);
         this.saveToLibraryBtn.disabled = true;
         this.clearBtn.disabled = false;
         this.showMessage(`「${item.title}」をライブラリから読み込みました`, 'success');
@@ -635,9 +640,7 @@ class TextLibrary {
         const start = (this.libraryCurrentPage - 1) * this.libraryPerPage;
         const pageItems = filteredItems.slice(start, start + this.libraryPerPage);
         pageItems.forEach(item => this.libraryGrid.appendChild(this.createLibraryItem(item)));
-        if (totalPages > 1) {
-            this.renderLibraryPagination(totalPages);
-        }
+        this.renderLibraryPagination(totalPages);
     }
 
     renderLibraryPagination(totalPages) {
@@ -769,10 +772,7 @@ class TextLibrary {
 
         pageWords.forEach(word => this.wordLibraryGrid.appendChild(this.createWordLibraryItem(word)));
 
-        // ページネーションボタン表示（2ページ以上ある場合）
-        if (totalPages > 1) {
-            this.renderWordPagination(totalPages);
-        }
+        this.renderWordPagination(totalPages);
     }
 
     renderWordPagination(totalPages) {

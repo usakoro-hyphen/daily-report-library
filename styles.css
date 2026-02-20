@@ -305,6 +305,13 @@ body {
     display: inline;
 }
 
+.search-highlight {
+    background: #fef08a;
+    color: #92400e;
+    padding: 0.1em 0.2em;
+    border-radius: 3px;
+}
+
 .block-separator {
     height: 2rem;
     margin: 1.5rem 0;
