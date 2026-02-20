@@ -192,6 +192,7 @@ class TextLibrary {
         this.bindEvents();
         this.setupRealtimeSync();
         this.loadDeleteBtnState();
+        this.loadEditModeState();
     }
 
     initializeElements() {
@@ -249,6 +250,11 @@ class TextLibrary {
         this.wordCurrentPage = 1;
         this.wordsPerPage = 3;
 
+        this.libraryCurrentPage = 1;
+        this.libraryPerPage = 3;
+
+        this.toggleEditMode = document.getElementById('toggleEditMode');
+
         this.fileInput = document.getElementById('fileInput');
     }
 
@@ -259,6 +265,7 @@ class TextLibrary {
         this.testApiKeyBtn.addEventListener('click', () => this.testApiKey());
         this.toggleApiKeyVisibilityBtn.addEventListener('click', () => this.toggleApiKeyVisibility());
         this.toggleDeleteBtns.addEventListener('change', () => this.handleDeleteBtnToggle());
+        this.toggleEditMode.addEventListener('change', () => this.handleEditModeToggle());
 
         this.loadBtnInline.addEventListener('click', () => this.toggleDropZone());
 
@@ -609,10 +616,57 @@ class TextLibrary {
 
     updateLibraryDisplay(searchTerm = '') {
         this.libraryGrid.innerHTML = '';
+        document.getElementById('libraryPaginationContainer').innerHTML = '';
         let filteredItems = this.library;
-        if (searchTerm.trim()) { filteredItems = this.library.filter(item => item.title.toLowerCase().includes(searchTerm.toLowerCase())); }
-        if (filteredItems.length === 0) { this.libraryGrid.innerHTML = '<p class="placeholder">テキストファイルライブラリにテキストがありません</p>'; return; }
-        filteredItems.forEach(item => this.libraryGrid.appendChild(this.createLibraryItem(item)));
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            filteredItems = this.library.filter(item =>
+                item.title.toLowerCase().includes(term) ||
+                (item.content || item.text || '').toLowerCase().includes(term)
+            );
+            this.libraryCurrentPage = 1;
+        }
+        if (filteredItems.length === 0) {
+            this.libraryGrid.innerHTML = '<p class="placeholder">テキストファイルライブラリにテキストがありません</p>';
+            return;
+        }
+        const totalPages = Math.ceil(filteredItems.length / this.libraryPerPage);
+        if (this.libraryCurrentPage > totalPages) this.libraryCurrentPage = totalPages;
+        const start = (this.libraryCurrentPage - 1) * this.libraryPerPage;
+        const pageItems = filteredItems.slice(start, start + this.libraryPerPage);
+        pageItems.forEach(item => this.libraryGrid.appendChild(this.createLibraryItem(item)));
+        if (totalPages > 1) {
+            this.renderLibraryPagination(totalPages);
+        }
+    }
+
+    renderLibraryPagination(totalPages) {
+        const container = document.getElementById('libraryPaginationContainer');
+        container.innerHTML = '';
+        const paginationDiv = document.createElement('div');
+        paginationDiv.className = 'word-pagination';
+        const goToPage = (page) => {
+            this.libraryCurrentPage = page;
+            this.updateLibraryDisplay(this.librarySearch.value);
+        };
+        const addBtn = (text, page, isActive = false, isDisabled = false) => {
+            const btn = document.createElement('button');
+            btn.className = `pagination-btn${isActive ? ' active' : ''}`;
+            btn.textContent = text;
+            btn.disabled = isDisabled;
+            if (!isDisabled) btn.addEventListener('click', () => goToPage(page));
+            paginationDiv.appendChild(btn);
+        };
+        const current = this.libraryCurrentPage;
+        addBtn('«', 1, false, current === 1);
+        addBtn('‹', current - 1, false, current === 1);
+        let startPage = Math.max(1, current - 2);
+        let endPage = Math.min(totalPages, startPage + 4);
+        startPage = Math.max(1, endPage - 4);
+        for (let i = startPage; i <= endPage; i++) addBtn(i, i, i === current);
+        addBtn('›', current + 1, false, current === totalPages);
+        addBtn('»', totalPages, false, current === totalPages);
+        container.appendChild(paginationDiv);
     }
 
     createLibraryItem(item) {
@@ -620,13 +674,17 @@ class TextLibrary {
         div.className = 'library-item';
         const content = item.content || item.text || '';
         div.innerHTML = `
-            <div class="library-item-actions"><button class="delete-btn" data-id="${item.id}">×</button></div>
+            <div class="library-item-actions">
+                <button class="edit-btn" data-id="${item.id}">✏️</button>
+                <button class="delete-btn" data-id="${item.id}">×</button>
+            </div>
             <h3 class="library-item-title">${this.escapeHtml(item.title)}</h3>
             <p class="library-item-preview">${this.escapeHtml(this.createPreview(content))}</p>
             <p class="library-item-date">${this.formatDate(item.createdAt)}</p>
         `;
-        div.addEventListener('click', (e) => { if (!e.target.classList.contains('delete-btn')) this.loadFromLibrary(item); });
+        div.addEventListener('click', (e) => { if (!e.target.classList.contains('delete-btn') && !e.target.classList.contains('edit-btn')) this.loadFromLibrary(item); });
         div.querySelector('.delete-btn').addEventListener('click', (e) => { e.stopPropagation(); this.deleteFromLibrary(item.id); });
+        div.querySelector('.edit-btn').addEventListener('click', (e) => { e.stopPropagation(); this.editLibraryItem(item); });
         return div;
     }
 
@@ -770,13 +828,17 @@ class TextLibrary {
         const div = document.createElement('div');
         div.className = 'library-item word-item';
         div.innerHTML = `
-            <div class="library-item-actions"><button class="delete-btn" data-id="${word.id}">×</button></div>
+            <div class="library-item-actions">
+                <button class="edit-btn" data-id="${word.id}">✏️</button>
+                <button class="delete-btn" data-id="${word.id}">×</button>
+            </div>
             <h3 class="library-item-title">${this.escapeHtml(word.word)}</h3>
             <p class="library-item-preview">ソース: ${this.escapeHtml(word.sourceTitle || '不明')}</p>
             <p class="library-item-date">最終確認: ${this.formatDate(word.lastSeen)}</p>
         `;
-        div.addEventListener('click', (e) => { if (!e.target.classList.contains('delete-btn')) this.showWordDetail(word); });
+        div.addEventListener('click', (e) => { if (!e.target.classList.contains('delete-btn') && !e.target.classList.contains('edit-btn')) this.showWordDetail(word); });
         div.querySelector('.delete-btn').addEventListener('click', (e) => { e.stopPropagation(); this.deleteFromWordLibrary(word.id); });
+        div.querySelector('.edit-btn').addEventListener('click', (e) => { e.stopPropagation(); this.editWordItem(word); });
         return div;
     }
 
@@ -837,6 +899,54 @@ class TextLibrary {
         const show = this.toggleDeleteBtns.checked;
         localStorage.setItem('showDeleteBtns', show);
         document.body.classList.toggle('show-delete-btns', show);
+    }
+
+    loadEditModeState() {
+        const show = localStorage.getItem('editMode') === 'true';
+        this.toggleEditMode.checked = show;
+        document.body.classList.toggle('edit-mode', show);
+    }
+
+    handleEditModeToggle() {
+        const show = this.toggleEditMode.checked;
+        localStorage.setItem('editMode', show);
+        document.body.classList.toggle('edit-mode', show);
+        this.updateLibraryDisplay(this.librarySearch.value);
+        this.updateWordLibraryDisplay(this.wordSearch.value);
+    }
+
+    async editLibraryItem(item) {
+        const newTitle = prompt('タイトルを編集:', item.title);
+        if (newTitle === null) return;
+        const content = item.content || item.text || '';
+        const newContent = prompt('内容を編集:', content.replace(/===BLOCK_SEPARATOR===/g, '\n'));
+        if (newContent === null) return;
+        try {
+            await setDoc(doc(db, 'library', item.id), {
+                ...item,
+                title: newTitle.trim() || item.title,
+                content: newContent.trim()
+            });
+            this.showMessage('テキストファイルを更新しました', 'success');
+        } catch (error) {
+            console.error('編集エラー:', error);
+            this.showMessage('更新に失敗しました', 'error');
+        }
+    }
+
+    async editWordItem(word) {
+        const newWord = prompt('用語を編集:', word.word);
+        if (newWord === null) return;
+        try {
+            await setDoc(doc(db, 'wordLibrary', word.id), {
+                ...word,
+                word: newWord.trim() || word.word
+            });
+            this.showMessage('用語を更新しました', 'success');
+        } catch (error) {
+            console.error('編集エラー:', error);
+            this.showMessage('更新に失敗しました', 'error');
+        }
     }
 
     async saveApiKey() {

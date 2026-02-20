@@ -611,12 +611,17 @@ body {
     gap: 0.5rem;
 }
 
-body.show-delete-btns .library-item-actions {
+body.show-delete-btns .delete-btn {
     display: flex;
 }
 
-body.show-delete-btns .library-item:hover .library-item-actions {
-    opacity: 1;
+body.edit-mode .edit-btn {
+    display: flex;
+}
+
+body.show-delete-btns .library-item-actions,
+body.edit-mode .library-item-actions {
+    display: flex;
 }
 
 .delete-btn {
@@ -636,6 +641,30 @@ body.show-delete-btns .library-item:hover .library-item-actions {
 .delete-btn:hover {
     background: #dc2626;
     transform: scale(1.1);
+}
+
+.edit-btn {
+    background: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    transition: all 0.3s ease;
+}
+
+.edit-btn:hover {
+    background: #2563eb;
+    transform: scale(1.1);
+}
+
+.delete-btn {
+    display: none;
 }
 
 /* モーダル */

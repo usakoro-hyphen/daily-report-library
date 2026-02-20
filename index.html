@@ -46,6 +46,14 @@
                     </label>
                     <p class="setting-description">ONにするとライブラリの各アイテムに削除ボタンが表示されます</p>
                 </div>
+                <div class="setting-item">
+                    <label class="toggle-label">
+                        <span>編集モード</span>
+                        <input type="checkbox" id="toggleEditMode">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <p class="setting-description">ONにするとライブラリの保存済みアイテムを編集できます</p>
+                </div>
                 <hr class="setting-divider">
                 <div class="setting-item">
                     <label>一括削除</label>
@@ -162,12 +170,13 @@
             <div class="library-header">
                 <h2 class="library-title">テキストファイルライブラリ</h2>
                 <div class="library-controls">
-                    <input type="text" id="librarySearch" class="search-box" placeholder="ファイル名を検索...">
+                    <input type="text" id="librarySearch" class="search-box" placeholder="キーワードを入力...">
                 </div>
             </div>
             <div id="libraryGrid" class="library-grid">
                 <!-- ライブラリアイテムがここに表示されます -->
             </div>
+            <div id="libraryPaginationContainer"></div>
         </section>
     </main>
 
