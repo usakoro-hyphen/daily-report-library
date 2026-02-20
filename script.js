@@ -256,6 +256,11 @@ class TextLibrary {
         this.toggleEditMode = document.getElementById('toggleEditMode');
 
         this.fileInput = document.getElementById('fileInput');
+
+        this.fileViewModal = document.getElementById('fileViewModal');
+        this.fileViewTitle = document.getElementById('fileViewTitle');
+        this.fileViewContent = document.getElementById('fileViewContent');
+        this.closeFileViewModalBtn = document.getElementById('closeFileViewModal');
     }
 
     bindEvents() {
@@ -266,6 +271,9 @@ class TextLibrary {
         this.toggleApiKeyVisibilityBtn.addEventListener('click', () => this.toggleApiKeyVisibility());
         this.toggleDeleteBtns.addEventListener('change', () => this.handleDeleteBtnToggle());
         this.toggleEditMode.addEventListener('change', () => this.handleEditModeToggle());
+
+        this.closeFileViewModalBtn.addEventListener('click', () => this.fileViewModal.classList.add('hidden'));
+        this.fileViewModal.addEventListener('click', (e) => { if (e.target === this.fileViewModal) this.fileViewModal.classList.add('hidden'); });
 
         this.loadBtnInline.addEventListener('click', () => this.toggleDropZone());
 
@@ -467,16 +475,39 @@ class TextLibrary {
     }
 
     loadFromLibrary(item) {
-        this.currentText = item.content || item.text || '';
-        this.currentTitle = item.title;
+        const content = item.content || item.text || '';
         const searchTerm = this.librarySearch.value.trim();
-        this.displayContent(false, searchTerm);
-        this.saveToLibraryBtn.disabled = true;
-        this.clearBtn.disabled = false;
-        this.showMessage(`「${item.title}」をライブラリから読み込みました`, 'success');
-        this.extractAndSaveWordsFromText(this.currentText, this.currentTitle);
-        // コンテンツエリアまで自動スクロール
-        this.contentArea.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+        // モーダルにタイトル設定
+        this.fileViewTitle.textContent = item.title;
+
+        // コンテンツをレンダリング（displayContentと同じロジック）
+        const blocks = content.split('===BLOCK_SEPARATOR===');
+        let htmlContent = '';
+        blocks.forEach((block, index) => {
+            if (block.trim()) {
+                let cleanBlock = block.trim().replace(/\n+/g, ' ').replace(/\s+/g, ' ');
+                cleanBlock = this.escapeHtml(cleanBlock);
+                cleanBlock = cleanBlock.replace(/([^…＝\s]+)([…＝=])/g, '<span class="term">$1</span>$2');
+                if (searchTerm) {
+                    const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    cleanBlock = cleanBlock.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="search-highlight">$1</mark>');
+                }
+                if (cleanBlock) {
+                    htmlContent += `<p class="text-paragraph">${cleanBlock}</p>`;
+                }
+                if (index < blocks.length - 1) {
+                    htmlContent += '<div class="block-separator"></div>';
+                }
+            }
+        });
+        this.fileViewContent.innerHTML = htmlContent;
+
+        // モーダル表示
+        this.fileViewModal.classList.remove('hidden');
+
+        // ワード抽出も実行
+        this.extractAndSaveWordsFromText(content, item.title);
     }
 
     async deleteFromLibrary(id) {
