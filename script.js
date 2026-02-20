@@ -844,7 +844,7 @@ class TextLibrary {
 
     showWordDetail(word) {
         this.wordDetailTitle.textContent = word.word;
-        const explanationText = this.findWordExplanation(word.word);
+        const explanationText = word.explanation || this.findWordExplanation(word.word);
         this.wordDetailContent.innerHTML = `
             <div class="word-context"><p>${this.escapeHtml(explanationText)}</p></div>
             <div class="word-meta">
@@ -915,38 +915,73 @@ class TextLibrary {
         this.updateWordLibraryDisplay(this.wordSearch.value);
     }
 
+    showEditModal(fields, onSave) {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:3000;display:flex;align-items:center;justify-content:center;';
+        const modal = document.createElement('div');
+        modal.style.cssText = 'background:white;padding:1.5rem;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,0.2);width:90%;max-width:500px;max-height:80vh;overflow-y:auto;';
+        let html = '<h3 style="margin:0 0 1rem;color:#333;">編集</h3>';
+        fields.forEach(f => {
+            html += `<label style="display:block;font-weight:bold;margin:0.5rem 0 0.25rem;color:#555;">${this.escapeHtml(f.label)}</label>`;
+            if (f.multiline) {
+                html += `<textarea class="edit-field" data-key="${f.key}" style="width:100%;min-height:120px;padding:0.5rem;border:1px solid #d1d5db;border-radius:8px;font-size:0.95rem;resize:vertical;box-sizing:border-box;">${this.escapeHtml(f.value)}</textarea>`;
+            } else {
+                html += `<input class="edit-field" data-key="${f.key}" type="text" value="${this.escapeHtml(f.value)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:8px;font-size:0.95rem;box-sizing:border-box;">`;
+            }
+        });
+        html += '<div style="display:flex;gap:0.5rem;margin-top:1rem;justify-content:flex-end;">';
+        html += '<button class="edit-cancel btn secondary">キャンセル</button>';
+        html += '<button class="edit-save btn primary" style="background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;">保存</button>';
+        html += '</div>';
+        modal.innerHTML = html;
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        modal.querySelector('.edit-cancel').addEventListener('click', () => overlay.remove());
+        overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        modal.querySelector('.edit-save').addEventListener('click', async () => {
+            const values = {};
+            modal.querySelectorAll('.edit-field').forEach(el => { values[el.dataset.key] = el.value; });
+            await onSave(values);
+            overlay.remove();
+        });
+    }
+
     async editLibraryItem(item) {
-        const newTitle = prompt('タイトルを編集:', item.title);
-        if (newTitle === null) return;
-        const content = item.content || item.text || '';
-        const newContent = prompt('内容を編集:', content.replace(/===BLOCK_SEPARATOR===/g, '\n'));
-        if (newContent === null) return;
-        try {
-            await setDoc(doc(db, 'library', item.id), {
-                ...item,
-                title: newTitle.trim() || item.title,
-                content: newContent.trim()
-            });
-            this.showMessage('テキストファイルを更新しました', 'success');
-        } catch (error) {
-            console.error('編集エラー:', error);
-            this.showMessage('更新に失敗しました', 'error');
-        }
+        const content = (item.content || item.text || '').replace(/===BLOCK_SEPARATOR===/g, '\n\n');
+        this.showEditModal([
+            { key: 'title', label: 'タイトル', value: item.title, multiline: false },
+            { key: 'content', label: '内容', value: content, multiline: true }
+        ], async (values) => {
+            try {
+                await setDoc(doc(db, 'library', item.id), {
+                    ...item,
+                    title: values.title.trim() || item.title,
+                    content: values.content.trim()
+                });
+                this.showMessage('テキストファイルを更新しました', 'success');
+            } catch (error) {
+                console.error('編集エラー:', error);
+                this.showMessage('更新に失敗しました', 'error');
+            }
+        });
     }
 
     async editWordItem(word) {
-        const newWord = prompt('用語を編集:', word.word);
-        if (newWord === null) return;
-        try {
-            await setDoc(doc(db, 'wordLibrary', word.id), {
-                ...word,
-                word: newWord.trim() || word.word
-            });
-            this.showMessage('用語を更新しました', 'success');
-        } catch (error) {
-            console.error('編集エラー:', error);
-            this.showMessage('更新に失敗しました', 'error');
-        }
+        const explanation = this.findWordExplanation(word.word);
+        this.showEditModal([
+            { key: 'word', label: '用語', value: word.word, multiline: false },
+            { key: 'explanation', label: '用語の説明', value: word.explanation || explanation, multiline: true }
+        ], async (values) => {
+            try {
+                const updateData = { ...word, word: values.word.trim() || word.word };
+                if (values.explanation.trim()) updateData.explanation = values.explanation.trim();
+                await setDoc(doc(db, 'wordLibrary', word.id), updateData);
+                this.showMessage('用語を更新しました', 'success');
+            } catch (error) {
+                console.error('編集エラー:', error);
+                this.showMessage('更新に失敗しました', 'error');
+            }
+        });
     }
 
     async saveApiKey() {
