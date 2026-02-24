@@ -314,6 +314,8 @@ class TextLibrary {
         this.clearBtn.addEventListener('click', () => this.clearContent());
 
         this.cameraBtn.addEventListener('click', () => this.openOcrModal());
+        this.closeOcrModalBtn.addEventListener('click', (e) => { e.stopPropagation(); this.closeOcrModal(); });
+        this.ocrModal.addEventListener('click', (e) => { if (e.target === this.ocrModal) this.closeOcrModal(); });
         this.captureBtn.addEventListener('click', () => this.captureImage());
         this.retakeBtn.addEventListener('click', () => this.retakeImage());
         this.recognizeBtn.addEventListener('click', () => this.recognizeText());
@@ -405,9 +407,8 @@ class TextLibrary {
         this.displayContent(true);
     }
 
-    displayContent(editable = false, highlightTerm = '') {
-        this.documentTitle.textContent = this.currentTitle;
-        const blocks = this.currentText.split('===BLOCK_SEPARATOR===');
+    renderBlocksToHtml(content, highlightTerm = '') {
+        const blocks = content.split('===BLOCK_SEPARATOR===');
         let htmlContent = '';
         blocks.forEach((block, index) => {
             if (block.trim()) {
@@ -426,13 +427,22 @@ class TextLibrary {
                 }
             }
         });
-        this.textDisplay.innerHTML = htmlContent;
+        return htmlContent;
+    }
+
+    displayContent(editable = false, highlightTerm = '') {
+        this.documentTitle.textContent = this.currentTitle;
+        this.textDisplay.innerHTML = this.renderBlocksToHtml(this.currentText, highlightTerm);
         this.textDisplay.contentEditable = editable;
         if (editable) {
             this.textDisplay.classList.add('editable');
-            this.textDisplay.addEventListener('input', () => {
+            if (this._inputHandler) {
+                this.textDisplay.removeEventListener('input', this._inputHandler);
+            }
+            this._inputHandler = () => {
                 this.currentText = this.textDisplay.innerText.trim();
-            }, { once: false });
+            };
+            this.textDisplay.addEventListener('input', this._inputHandler);
         } else {
             this.textDisplay.classList.remove('editable');
         }
@@ -459,8 +469,34 @@ class TextLibrary {
         this.documentTitle.textContent = '読み込み/保存';
         this.textDisplay.contentEditable = false;
         this.textDisplay.classList.remove('editable');
-        this.textDisplay.innerHTML = '<p class="placeholder">読み込みボタンをクリックして.txtファイルを読み込んでください</p><div class="placeholder-action"><button id="loadBtnInline" class="btn primary">読み込み</button><button id="cameraBtn" class="btn secondary">📷 カメラで文字読み取り</button></div>';
+        if (this._inputHandler) {
+            this.textDisplay.removeEventListener('input', this._inputHandler);
+            this._inputHandler = null;
+        }
+        this.textDisplay.innerHTML = `
+            <p class="placeholder">読み込みボタンをクリックして.txtファイルを読み込んでください</p>
+            <div class="placeholder-action">
+                <div id="dropZone" class="drop-zone hidden">
+                    <div class="drop-content">
+                        <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                            <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <p class="drop-text">テキストファイル（.txt）をここにドラッグ&ドロップ</p>
+                        <p class="drop-subtext">またはクリックしてファイルを選択</p>
+                    </div>
+                    <input type="file" id="fileInput" accept=".txt" multiple hidden>
+                </div>
+                <button id="loadBtnInline" class="btn primary">読み込み</button>
+                <button id="cameraBtn" class="btn secondary">📷 カメラで文字読み取り</button>
+            </div>`;
         this.disableContentActions();
+        this.dropZone = document.getElementById('dropZone');
+        this.fileInput = document.getElementById('fileInput');
+        this.dropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
+        this.dropZone.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+        this.dropZone.addEventListener('drop', (e) => this.handleDrop(e));
+        this.dropZone.addEventListener('click', () => this.fileInput.click());
+        this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
         const newInlineBtn = document.getElementById('loadBtnInline');
         if (newInlineBtn) { newInlineBtn.addEventListener('click', () => this.toggleDropZone()); this.loadBtnInline = newInlineBtn; }
         const newCameraBtn = document.getElementById('cameraBtn');
@@ -499,27 +535,7 @@ class TextLibrary {
         // モーダルにタイトル設定
         this.fileViewTitle.textContent = item.title;
 
-        // コンテンツをレンダリング（displayContentと同じロジック）
-        const blocks = content.split('===BLOCK_SEPARATOR===');
-        let htmlContent = '';
-        blocks.forEach((block, index) => {
-            if (block.trim()) {
-                let cleanBlock = block.trim().replace(/\n+/g, ' ').replace(/\s+/g, ' ');
-                cleanBlock = this.escapeHtml(cleanBlock);
-                cleanBlock = cleanBlock.replace(/([^…＝\s]+)([…＝=])/g, '<span class="term">$1</span>$2');
-                if (searchTerm) {
-                    const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                    cleanBlock = cleanBlock.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="search-highlight">$1</mark>');
-                }
-                if (cleanBlock) {
-                    htmlContent += `<p class="text-paragraph">${cleanBlock}</p>`;
-                }
-                if (index < blocks.length - 1) {
-                    htmlContent += '<div class="block-separator"></div>';
-                }
-            }
-        });
-        this.fileViewContent.innerHTML = htmlContent;
+        this.fileViewContent.innerHTML = this.renderBlocksToHtml(content, searchTerm);
 
         // モーダル表示
         this.fileViewModal.classList.remove('hidden');
@@ -1111,7 +1127,6 @@ class TextLibrary {
 
     async openOcrModal() {
         this.ocrModal.classList.remove('hidden');
-        if (this.closeOcrModalBtn) this.closeOcrModalBtn.addEventListener('click', () => this.closeOcrModal());
         await this.startCamera();
     }
 
@@ -1276,25 +1291,25 @@ class TextLibrary {
         dialog.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:2rem;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,0.2);z-index:3000;min-width:300px;';
         dialog.innerHTML = `
             <h3 style="margin:0 0 1rem 0;color:#333;">${this.escapeHtml(message)}</h3>
-            <input type="password" id="passwordInput" style="width:100%;padding:0.75rem;border:2px solid #e5e7eb;border-radius:8px;font-size:1rem;margin-bottom:1rem;box-sizing:border-box;" placeholder="パスワードを入力">
+            <input type="password" class="pw-input" style="width:100%;padding:0.75rem;border:2px solid #e5e7eb;border-radius:8px;font-size:1rem;margin-bottom:1rem;box-sizing:border-box;" placeholder="パスワードを入力">
             <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-                <button id="cancelBtn" style="padding:0.5rem 1rem;border:none;border-radius:6px;background:#6b7280;color:white;cursor:pointer;font-size:0.9rem;">キャンセル</button>
-                <button id="okBtn" style="padding:0.5rem 1rem;border:none;border-radius:6px;background:#3b82f6;color:white;cursor:pointer;font-size:0.9rem;">OK</button>
+                <button class="pw-cancel" style="padding:0.5rem 1rem;border:none;border-radius:6px;background:#6b7280;color:white;cursor:pointer;font-size:0.9rem;">キャンセル</button>
+                <button class="pw-ok" style="padding:0.5rem 1rem;border:none;border-radius:6px;background:#3b82f6;color:white;cursor:pointer;font-size:0.9rem;">OK</button>
             </div>
         `;
         const overlay = document.createElement('div');
         overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:2999;';
         document.body.appendChild(overlay);
         document.body.appendChild(dialog);
-        const passwordInput = document.getElementById('passwordInput');
+        const passwordInput = dialog.querySelector('.pw-input');
         passwordInput.focus();
         return new Promise((resolve) => {
             const cleanup = () => { document.body.removeChild(overlay); document.body.removeChild(dialog); document.removeEventListener('keydown', handleKeydown); };
             const handleOk = () => { const pw = passwordInput.value; cleanup(); resolve(pw); };
             const handleCancel = () => { cleanup(); resolve(null); };
             const handleKeydown = (e) => { if (e.key === 'Enter') handleOk(); else if (e.key === 'Escape') handleCancel(); };
-            document.getElementById('okBtn').addEventListener('click', handleOk);
-            document.getElementById('cancelBtn').addEventListener('click', handleCancel);
+            dialog.querySelector('.pw-ok').addEventListener('click', handleOk);
+            dialog.querySelector('.pw-cancel').addEventListener('click', handleCancel);
             document.addEventListener('keydown', handleKeydown);
         });
     }
