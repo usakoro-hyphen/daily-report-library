@@ -1129,6 +1129,164 @@ body.edit-mode .library-item-actions {
     }
 }
 
+/* 動的ダイアログ共通 */
+.dialog-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 2999;
+}
+
+.dialog-overlay.centered {
+    z-index: 3000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.dialog-box {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 2rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    z-index: 3000;
+    min-width: 300px;
+}
+
+.dialog-box h3 {
+    margin: 0 0 1rem 0;
+    color: #333;
+}
+
+.dialog-input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 8px;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    box-sizing: border-box;
+}
+
+.dialog-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.dialog-btn {
+    padding: 0.5rem 1rem;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    color: white;
+}
+
+.dialog-btn.cancel {
+    background: #6b7280;
+}
+
+.dialog-btn.ok {
+    background: #3b82f6;
+}
+
+/* 編集モーダル */
+.edit-modal-box {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.edit-modal-box h3 {
+    margin: 0 0 1rem;
+    color: #333;
+}
+
+.edit-modal-label {
+    display: block;
+    font-weight: bold;
+    margin: 0.5rem 0 0.25rem;
+    color: #555;
+}
+
+.edit-modal-input {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.95rem;
+    box-sizing: border-box;
+}
+
+textarea.edit-modal-input {
+    min-height: 120px;
+    resize: vertical;
+}
+
+.edit-modal-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    justify-content: flex-end;
+}
+
+.edit-modal-save {
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+}
+
+/* トーストメッセージ */
+.toast-message {
+    position: fixed;
+    top: 70px;
+    right: 20px;
+    padding: 0.75rem 1.25rem;
+    border-radius: 8px;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    z-index: 2000;
+    animation: slideInRight 0.3s ease;
+    max-width: 280px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.toast-message.message-success {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.toast-message.message-error {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+}
+
+.toast-message.message-info {
+    background: linear-gradient(135deg, #3b82f6, #2563eb);
+}
+
+@keyframes slideInRight {
+    from { opacity: 0; transform: translateX(100px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideOutRight {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(100px); }
+}
+
 /* レスポンシブ */
 @media (max-width: 768px) {
     .header {

@@ -180,6 +180,11 @@ class GeminiOCR {
 }
 
 class TextLibrary {
+    // 設定値
+    static WORDS_PER_PAGE = 3;
+    static LIBRARY_PER_PAGE = 3;
+    static RECOMMEND_COUNT = 3;
+
     constructor() {
         this.currentText = '';
         this.currentTitle = '';
@@ -190,6 +195,7 @@ class TextLibrary {
         this.capturedImageData = null;
 
         this.initializeElements();
+        this._initialPlaceholderHtml = this.textDisplay.innerHTML;
         this.bindEvents();
         this.setupRealtimeSync();
         this.loadDeleteBtnState();
@@ -249,10 +255,8 @@ class TextLibrary {
         this.gojuonFilter = document.getElementById('gojuonFilter');
         this.activeGojuonRow = 'all';
         this.wordCurrentPage = 1;
-        this.wordsPerPage = 3;
 
         this.libraryCurrentPage = 1;
-        this.libraryPerPage = 3;
 
         this.toggleEditMode = document.getElementById('toggleEditMode');
 
@@ -473,35 +477,35 @@ class TextLibrary {
             this.textDisplay.removeEventListener('input', this._inputHandler);
             this._inputHandler = null;
         }
-        this.textDisplay.innerHTML = `
-            <p class="placeholder">読み込みボタンをクリックして.txtファイルを読み込んでください</p>
-            <div class="placeholder-action">
-                <div id="dropZone" class="drop-zone hidden">
-                    <div class="drop-content">
-                        <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                            <path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                        <p class="drop-text">テキストファイル（.txt）をここにドラッグ&ドロップ</p>
-                        <p class="drop-subtext">またはクリックしてファイルを選択</p>
-                    </div>
-                    <input type="file" id="fileInput" accept=".txt" multiple hidden>
-                </div>
-                <button id="loadBtnInline" class="btn primary">読み込み</button>
-                <button id="cameraBtn" class="btn secondary">📷 カメラで文字読み取り</button>
-            </div>`;
+        this.textDisplay.innerHTML = this._initialPlaceholderHtml;
         this.disableContentActions();
+        this.rebindPlaceholderElements();
+        this.showMessage('コンテンツをクリアしました', 'info');
+    }
+
+    rebindPlaceholderElements() {
+        // innerHTML復元後にDOM参照を再取得し、イベントを再バインドする
+        // 対象: dropZone, fileInput, loadBtnInline, cameraBtn
         this.dropZone = document.getElementById('dropZone');
         this.fileInput = document.getElementById('fileInput');
-        this.dropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
-        this.dropZone.addEventListener('dragleave', (e) => this.handleDragLeave(e));
-        this.dropZone.addEventListener('drop', (e) => this.handleDrop(e));
-        this.dropZone.addEventListener('click', () => this.fileInput.click());
-        this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
-        const newInlineBtn = document.getElementById('loadBtnInline');
-        if (newInlineBtn) { newInlineBtn.addEventListener('click', () => this.toggleDropZone()); this.loadBtnInline = newInlineBtn; }
-        const newCameraBtn = document.getElementById('cameraBtn');
-        if (newCameraBtn) { newCameraBtn.addEventListener('click', () => this.openOcrModal()); this.cameraBtn = newCameraBtn; }
-        this.showMessage('コンテンツをクリアしました', 'info');
+        this.loadBtnInline = document.getElementById('loadBtnInline');
+        this.cameraBtn = document.getElementById('cameraBtn');
+
+        if (this.dropZone) {
+            this.dropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
+            this.dropZone.addEventListener('dragleave', (e) => this.handleDragLeave(e));
+            this.dropZone.addEventListener('drop', (e) => this.handleDrop(e));
+            this.dropZone.addEventListener('click', () => this.fileInput.click());
+        }
+        if (this.fileInput) {
+            this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
+        }
+        if (this.loadBtnInline) {
+            this.loadBtnInline.addEventListener('click', () => this.toggleDropZone());
+        }
+        if (this.cameraBtn) {
+            this.cameraBtn.addEventListener('click', () => this.openOcrModal());
+        }
     }
 
     async saveToLibrary() {
@@ -700,40 +704,40 @@ class TextLibrary {
             this.libraryGrid.innerHTML = '<p class="placeholder">テキストファイルライブラリにテキストがありません</p>';
             return;
         }
-        const totalPages = Math.ceil(filteredItems.length / this.libraryPerPage);
+        const totalPages = Math.ceil(filteredItems.length / TextLibrary.LIBRARY_PER_PAGE);
         if (this.libraryCurrentPage > totalPages) this.libraryCurrentPage = totalPages;
-        const start = (this.libraryCurrentPage - 1) * this.libraryPerPage;
-        const pageItems = filteredItems.slice(start, start + this.libraryPerPage);
+        const start = (this.libraryCurrentPage - 1) * TextLibrary.LIBRARY_PER_PAGE;
+        const pageItems = filteredItems.slice(start, start + TextLibrary.LIBRARY_PER_PAGE);
         pageItems.forEach(item => this.libraryGrid.appendChild(this.createLibraryItem(item)));
-        this.renderLibraryPagination(totalPages);
+        this.renderPagination('libraryPaginationContainer', totalPages, this.libraryCurrentPage, (page) => {
+            this.libraryCurrentPage = page;
+            this.updateLibraryDisplay(this.librarySearch.value);
+        });
     }
 
-    renderLibraryPagination(totalPages) {
-        const container = document.getElementById('libraryPaginationContainer');
+    renderPagination(containerId, totalPages, currentPage, onPageChange) {
+        const container = document.getElementById(containerId);
         container.innerHTML = '';
         const paginationDiv = document.createElement('div');
         paginationDiv.className = 'word-pagination';
-        const goToPage = (page) => {
-            this.libraryCurrentPage = page;
-            this.updateLibraryDisplay(this.librarySearch.value);
-        };
         const addBtn = (text, page, isActive = false, isDisabled = false) => {
             const btn = document.createElement('button');
             btn.className = `pagination-btn${isActive ? ' active' : ''}`;
             btn.textContent = text;
             btn.disabled = isDisabled;
-            if (!isDisabled) btn.addEventListener('click', () => goToPage(page));
+            if (!isDisabled) btn.addEventListener('click', () => onPageChange(page));
             paginationDiv.appendChild(btn);
         };
-        const current = this.libraryCurrentPage;
-        addBtn('«', 1, false, current === 1);
-        addBtn('‹', current - 1, false, current === 1);
-        let startPage = Math.max(1, current - 2);
+        const atFirst = currentPage === 1;
+        const atLast = currentPage === totalPages;
+        addBtn('«', 1, false, atFirst);
+        addBtn('‹', currentPage - 1, false, atFirst);
+        let startPage = Math.max(1, currentPage - 2);
         let endPage = Math.min(totalPages, startPage + 4);
         startPage = Math.max(1, endPage - 4);
-        for (let i = startPage; i <= endPage; i++) addBtn(i, i, i === current);
-        addBtn('›', current + 1, false, current === totalPages);
-        addBtn('»', totalPages, false, current === totalPages);
+        for (let i = startPage; i <= endPage; i++) addBtn(i, i, i === currentPage);
+        addBtn('›', currentPage + 1, false, atLast);
+        addBtn('»', totalPages, false, atLast);
         container.appendChild(paginationDiv);
     }
 
@@ -821,7 +825,7 @@ class TextLibrary {
 
         // おすすめ: ランダム3件（ページネーションなし）
         if (this.activeGojuonRow === 'recommend') {
-            const randomWords = this.getRandomWords(filteredWords, 3);
+            const randomWords = this.getRandomWords(filteredWords, TextLibrary.RECOMMEND_COUNT);
             randomWords.forEach(word => this.wordLibraryGrid.appendChild(this.createWordLibraryItem(word)));
             return;
         }
@@ -830,58 +834,17 @@ class TextLibrary {
         let displayWords = [...filteredWords];
         displayWords.sort((a, b) => a.word.localeCompare(b.word, 'ja'));
 
-        const totalPages = Math.ceil(displayWords.length / this.wordsPerPage);
+        const totalPages = Math.ceil(displayWords.length / TextLibrary.WORDS_PER_PAGE);
         if (this.wordCurrentPage > totalPages) this.wordCurrentPage = totalPages;
-        const start = (this.wordCurrentPage - 1) * this.wordsPerPage;
-        const pageWords = displayWords.slice(start, start + this.wordsPerPage);
+        const start = (this.wordCurrentPage - 1) * TextLibrary.WORDS_PER_PAGE;
+        const pageWords = displayWords.slice(start, start + TextLibrary.WORDS_PER_PAGE);
 
         pageWords.forEach(word => this.wordLibraryGrid.appendChild(this.createWordLibraryItem(word)));
 
-        this.renderWordPagination(totalPages);
-    }
-
-    renderWordPagination(totalPages) {
-        const container = document.getElementById('wordPaginationContainer');
-        container.innerHTML = '';
-        const paginationDiv = document.createElement('div');
-        paginationDiv.className = 'word-pagination';
-
-        const goToPage = (page) => {
+        this.renderPagination('wordPaginationContainer', totalPages, this.wordCurrentPage, (page) => {
             this.wordCurrentPage = page;
             this.updateWordLibraryDisplay(this.wordSearch.value);
-        };
-
-        const addBtn = (text, page, isActive = false, isDisabled = false) => {
-            const btn = document.createElement('button');
-            btn.className = `pagination-btn${isActive ? ' active' : ''}`;
-            btn.textContent = text;
-            btn.disabled = isDisabled;
-            if (!isDisabled) btn.addEventListener('click', () => goToPage(page));
-            paginationDiv.appendChild(btn);
-        };
-
-        const current = this.wordCurrentPage;
-        const atFirst = current === 1;
-        const atLast = current === totalPages;
-
-        // 最初へ / 前へ
-        addBtn('«', 1, false, atFirst);
-        addBtn('‹', current - 1, false, atFirst);
-
-        // ページ番号（最大5つ、現在ページ中心）
-        let startPage = Math.max(1, current - 2);
-        let endPage = Math.min(totalPages, startPage + 4);
-        startPage = Math.max(1, endPage - 4);
-
-        for (let i = startPage; i <= endPage; i++) {
-            addBtn(i, i, i === current);
-        }
-
-        // 次へ / 最後へ
-        addBtn('›', current + 1, false, atLast);
-        addBtn('»', totalPages, false, atLast);
-
-        container.appendChild(paginationDiv);
+        });
     }
 
     getRandomWords(words, count) {
@@ -1011,21 +974,21 @@ class TextLibrary {
 
     showEditModal(fields, onSave) {
         const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:3000;display:flex;align-items:center;justify-content:center;';
+        overlay.className = 'dialog-overlay centered';
         const modal = document.createElement('div');
-        modal.style.cssText = 'background:white;padding:1.5rem;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,0.2);width:90%;max-width:500px;max-height:80vh;overflow-y:auto;';
-        let html = '<h3 style="margin:0 0 1rem;color:#333;">編集</h3>';
+        modal.className = 'edit-modal-box';
+        let html = '<h3>編集</h3>';
         fields.forEach(f => {
-            html += `<label style="display:block;font-weight:bold;margin:0.5rem 0 0.25rem;color:#555;">${this.escapeHtml(f.label)}</label>`;
+            html += `<label class="edit-modal-label">${this.escapeHtml(f.label)}</label>`;
             if (f.multiline) {
-                html += `<textarea class="edit-field" data-key="${f.key}" style="width:100%;min-height:120px;padding:0.5rem;border:1px solid #d1d5db;border-radius:8px;font-size:0.95rem;resize:vertical;box-sizing:border-box;">${this.escapeHtml(f.value)}</textarea>`;
+                html += `<textarea class="edit-field edit-modal-input" data-key="${f.key}">${this.escapeHtml(f.value)}</textarea>`;
             } else {
-                html += `<input class="edit-field" data-key="${f.key}" type="text" value="${this.escapeHtml(f.value)}" style="width:100%;padding:0.5rem;border:1px solid #d1d5db;border-radius:8px;font-size:0.95rem;box-sizing:border-box;">`;
+                html += `<input class="edit-field edit-modal-input" data-key="${f.key}" type="text" value="${this.escapeHtml(f.value)}">`;
             }
         });
-        html += '<div style="display:flex;gap:0.5rem;margin-top:1rem;justify-content:flex-end;">';
+        html += '<div class="edit-modal-actions">';
         html += '<button class="edit-cancel btn secondary">キャンセル</button>';
-        html += '<button class="edit-save btn primary" style="background:linear-gradient(135deg,#10b981,#059669);color:white;border:none;">保存</button>';
+        html += '<button class="edit-save btn primary edit-modal-save">保存</button>';
         html += '</div>';
         modal.innerHTML = html;
         overlay.appendChild(modal);
@@ -1288,17 +1251,17 @@ class TextLibrary {
 
     promptPassword(message) {
         const dialog = document.createElement('div');
-        dialog.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:white;padding:2rem;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,0.2);z-index:3000;min-width:300px;';
+        dialog.className = 'dialog-box';
         dialog.innerHTML = `
-            <h3 style="margin:0 0 1rem 0;color:#333;">${this.escapeHtml(message)}</h3>
-            <input type="password" class="pw-input" style="width:100%;padding:0.75rem;border:2px solid #e5e7eb;border-radius:8px;font-size:1rem;margin-bottom:1rem;box-sizing:border-box;" placeholder="パスワードを入力">
-            <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-                <button class="pw-cancel" style="padding:0.5rem 1rem;border:none;border-radius:6px;background:#6b7280;color:white;cursor:pointer;font-size:0.9rem;">キャンセル</button>
-                <button class="pw-ok" style="padding:0.5rem 1rem;border:none;border-radius:6px;background:#3b82f6;color:white;cursor:pointer;font-size:0.9rem;">OK</button>
+            <h3>${this.escapeHtml(message)}</h3>
+            <input type="password" class="pw-input dialog-input" placeholder="パスワードを入力">
+            <div class="dialog-actions">
+                <button class="pw-cancel dialog-btn cancel">キャンセル</button>
+                <button class="pw-ok dialog-btn ok">OK</button>
             </div>
         `;
         const overlay = document.createElement('div');
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:2999;';
+        overlay.className = 'dialog-overlay';
         document.body.appendChild(overlay);
         document.body.appendChild(dialog);
         const passwordInput = dialog.querySelector('.pw-input');
@@ -1316,21 +1279,11 @@ class TextLibrary {
 
     showMessage(message, type = 'info') {
         const messageEl = document.createElement('div');
-        messageEl.className = `message message-${type}`;
+        messageEl.className = `toast-message message-${type}`;
         messageEl.textContent = message;
-        messageEl.style.cssText = 'position:fixed;top:70px;right:20px;padding:0.75rem 1.25rem;border-radius:8px;color:white;font-weight:600;font-size:0.9rem;z-index:2000;animation:slideInRight 0.3s ease;max-width:280px;box-shadow:0 4px 15px rgba(0,0,0,0.2);';
-        const colors = { 'success': 'linear-gradient(135deg,#10b981,#059669)', 'error': 'linear-gradient(135deg,#ef4444,#dc2626)', 'info': 'linear-gradient(135deg,#3b82f6,#2563eb)' };
-        messageEl.style.background = colors[type] || colors.info;
         document.body.appendChild(messageEl);
         setTimeout(() => { messageEl.style.animation = 'slideOutRight 0.3s ease'; setTimeout(() => { if (messageEl.parentNode) messageEl.parentNode.removeChild(messageEl); }, 300); }, 3000);
     }
 }
-
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes slideInRight { from { opacity:0; transform:translateX(100px); } to { opacity:1; transform:translateX(0); } }
-    @keyframes slideOutRight { from { opacity:1; transform:translateX(0); } to { opacity:0; transform:translateX(100px); } }
-`;
-document.head.appendChild(style);
 
 document.addEventListener('DOMContentLoaded', () => { new TextLibrary(); });
