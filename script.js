@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-app.js';
-import { getFirestore, collection, doc, addDoc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, query, orderBy } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js';
+import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, addDoc, getDoc, getDocs, setDoc, deleteDoc, onSnapshot, query, orderBy } from 'https://www.gstatic.com/firebasejs/11.4.0/firebase-firestore.js';
 
 // Firebase設定
 const firebaseConfig = {
@@ -12,7 +12,9 @@ const firebaseConfig = {
 };
 
 const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
+const db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() })
+});
 
 /**
  * パスワードのSHA-256ハッシュを計算する
@@ -310,6 +312,12 @@ class TextLibrary {
 
         // Enterキーでライブラリに保存（テキスト表示中のみ）
         document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (!this.ocrModal.classList.contains('hidden')) { this.closeOcrModal(); return; }
+                if (!this.settingsModal.classList.contains('hidden')) { this.closeSettings(); return; }
+                if (!this.helpModal.classList.contains('hidden')) { this.helpModal.classList.add('hidden'); return; }
+                if (!this.fileViewModal.classList.contains('hidden')) { this.fileViewModal.classList.add('hidden'); return; }
+            }
             if (e.key === 'Enter' && !e.target.matches('input, textarea') && this.currentText && !this.saveToLibraryBtn.disabled) {
                 e.preventDefault();
                 this.saveToLibrary();
@@ -949,14 +957,12 @@ class TextLibrary {
     }
 
     loadDeleteBtnState() {
-        const show = localStorage.getItem('showDeleteBtns') === 'true';
-        this.toggleDeleteBtns.checked = show;
-        document.body.classList.toggle('show-delete-btns', show);
+        this.toggleDeleteBtns.checked = false;
+        document.body.classList.remove('show-delete-btns');
     }
 
     handleDeleteBtnToggle() {
         const show = this.toggleDeleteBtns.checked;
-        localStorage.setItem('showDeleteBtns', show);
         document.body.classList.toggle('show-delete-btns', show);
     }
 
@@ -1089,6 +1095,17 @@ class TextLibrary {
     }
 
     async openOcrModal() {
+        if (!navigator.onLine) {
+            this.showMessage('オフラインのためカメラ文字認識は使用できません', 'error');
+            return;
+        }
+        // navigator.onLineが信頼できない場合に備え、実際の接続確認
+        try {
+            await fetch('https://www.google.com/generate_204', { method: 'HEAD', mode: 'no-cors', cache: 'no-store' });
+        } catch {
+            this.showMessage('オフラインのためカメラ文字認識は使用できません', 'error');
+            return;
+        }
         this.ocrModal.classList.remove('hidden');
         await this.startCamera();
     }
@@ -1156,9 +1173,12 @@ class TextLibrary {
             }
         } catch (error) {
             console.error('OCRエラー:', error);
-            const userMessage = error.message?.includes('Gemini API')
-                ? 'Gemini APIエラーです。1分ほど待ってから再度撮影をお願いします。'
-                : (error.message || '文字認識でエラーが発生しました');
+            const isNetworkError = error instanceof TypeError && error.message?.includes('Failed to fetch');
+            const userMessage = isNetworkError
+                ? 'オフラインのため文字認識ができません。ネットワーク接続を確認してください。'
+                : error.message?.includes('Gemini API')
+                    ? 'Gemini APIエラーです。1分ほど待ってから再度撮影をお願いします。'
+                    : (error.message || '文字認識でエラーが発生しました');
             this.showOcrStatus('error', userMessage);
         } finally {
             this.recognizeBtn.disabled = false;
