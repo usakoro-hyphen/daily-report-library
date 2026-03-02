@@ -299,7 +299,7 @@ class TextLibrary {
         this.closeFileViewModalBtn.addEventListener('click', () => this.fileViewModal.classList.add('hidden'));
         this.fileViewModal.addEventListener('click', (e) => { if (e.target === this.fileViewModal) this.fileViewModal.classList.add('hidden'); });
 
-        this.loadBtnInline.addEventListener('click', () => this.toggleDropZone());
+        this.loadBtnInline.addEventListener('click', () => this.openFileDialog());
 
         this.dropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
         this.dropZone.addEventListener('dragleave', (e) => this.handleDragLeave(e));
@@ -379,7 +379,7 @@ class TextLibrary {
         });
     }
 
-    toggleDropZone() { this.fileInput.click(); }
+    openFileDialog() { this.fileInput.click(); }
 
     handleDragOver(e) { e.preventDefault(); this.dropZone.classList.add('dragover'); }
     handleDragLeave(e) { e.preventDefault(); this.dropZone.classList.remove('dragover'); }
@@ -509,7 +509,7 @@ class TextLibrary {
             this.fileInput.addEventListener('change', (e) => this.handleFileSelect(e));
         }
         if (this.loadBtnInline) {
-            this.loadBtnInline.addEventListener('click', () => this.toggleDropZone());
+            this.loadBtnInline.addEventListener('click', () => this.openFileDialog());
         }
         if (this.cameraBtn) {
             this.cameraBtn.addEventListener('click', () => this.openOcrModal());
@@ -590,11 +590,8 @@ class TextLibrary {
 
     async extractAndSaveWordsFromText(text, title) {
         const cleanText = text.replace(/===BLOCK_SEPARATOR===/g, ' ');
-        console.log('=== extractAndSaveWordsFromText ===');
-        console.log('cleanText:', JSON.stringify(cleanText));
         const termRegex = /([^…＝=\s]+)([…＝=])/g;
         const matches = [...cleanText.matchAll(termRegex)];
-        console.log('matches found:', matches.length, matches.map(m => `"${m[1]}" + "${m[2]}"`));
         const validMatches = matches.filter(m => m[1].trim().length > 0);
 
         // 漢字を含む用語で、まだreadingが未設定のものを収集
@@ -1159,11 +1156,7 @@ class TextLibrary {
         this.showOcrStatus('processing', 'Gemini AIで文字認識中...');
         try {
             const result = await GeminiOCR.recognize(this.capturedImageData);
-            console.log('=== OCR raw result ===');
-            console.log(JSON.stringify(result.text));
             const filteredText = this.filterOcrRange(result.text);
-            console.log('=== OCR filtered result ===');
-            console.log(JSON.stringify(filteredText));
             if (filteredText.trim()) {
                 this.ocrResultText.value = filteredText.trim();
                 this.showOcrResult();
@@ -1200,7 +1193,6 @@ class TextLibrary {
                 break;
             }
         }
-        console.log(`filterOcrRange: startIdx=${startIdx}, endIdx=${endIdx}, totalLines=${lines.length}`);
         const cleaned = lines.slice(startIdx, endIdx)
             .map(line => line.replace(/^[･・•·‧∙●◦◆■□▪▫]\s*/u, ''))
             .map(line => line.replace(/\.{2,}/g, '…'))

@@ -554,26 +554,10 @@ body {
     border-left: 4px solid #10b981;
 }
 
-.word-info {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-    margin: 0.5rem 0;
-}
-
 .word-meta {
     font-size: 0.85rem;
     color: #9ca3af;
     margin-top: 0.75rem;
-}
-
-.word-delimiters {
-    font-size: 0.8rem;
-    color: #6b7280;
-    background: #f3f4f6;
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
-    display: none; /* 非表示にする */
 }
 
 .word-detail {
