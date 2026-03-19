@@ -905,11 +905,13 @@ class TextLibrary {
             segments = newSegments;
         }
 
-        return segments.map(seg =>
-            seg.isLink
-                ? `<span class="word-link" data-id="${seg.wordId}">${this.escapeHtml(seg.text)}</span>`
-                : this.escapeHtml(seg.text)
-        ).join('');
+        const seen = new Set();
+        return segments.map(seg => {
+            if (!seg.isLink) return this.escapeHtml(seg.text);
+            if (seen.has(seg.wordId)) return this.escapeHtml(seg.text);
+            seen.add(seg.wordId);
+            return `<span class="word-link" data-id="${seg.wordId}">${this.escapeHtml(seg.text)}</span>`;
+        }).join('');
     }
 
     showWordDetail(word) {
