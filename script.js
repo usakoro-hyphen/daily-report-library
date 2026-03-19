@@ -278,6 +278,11 @@ class TextLibrary {
         this.fileViewTitle = document.getElementById('fileViewTitle');
         this.fileViewContent = document.getElementById('fileViewContent');
         this.closeFileViewModalBtn = document.getElementById('closeFileViewModal');
+
+        this.wordLinkModal = document.getElementById('wordLinkModal');
+        this.wordLinkModalTitle = document.getElementById('wordLinkModalTitle');
+        this.wordLinkModalContent = document.getElementById('wordLinkModalContent');
+        this.closeWordLinkModalBtn = document.getElementById('closeWordLinkModal');
     }
 
     bindEvents() {
@@ -299,6 +304,9 @@ class TextLibrary {
         this.closeFileViewModalBtn.addEventListener('click', () => this.fileViewModal.classList.add('hidden'));
         this.fileViewModal.addEventListener('click', (e) => { if (e.target === this.fileViewModal) this.fileViewModal.classList.add('hidden'); });
 
+        this.closeWordLinkModalBtn.addEventListener('click', () => this.wordLinkModal.classList.add('hidden'));
+        this.wordLinkModal.addEventListener('click', (e) => { if (e.target === this.wordLinkModal) this.wordLinkModal.classList.add('hidden'); });
+
         this.loadBtnInline.addEventListener('click', () => this.openFileDialog());
 
         this.dropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
@@ -316,6 +324,7 @@ class TextLibrary {
                 if (!this.ocrModal.classList.contains('hidden')) { this.closeOcrModal(); return; }
                 if (!this.settingsModal.classList.contains('hidden')) { this.closeSettings(); return; }
                 if (!this.helpModal.classList.contains('hidden')) { this.helpModal.classList.add('hidden'); return; }
+                if (!this.wordLinkModal.classList.contains('hidden')) { this.wordLinkModal.classList.add('hidden'); return; }
                 if (!this.fileViewModal.classList.contains('hidden')) { this.fileViewModal.classList.add('hidden'); return; }
             }
             if (e.key === 'Enter' && !e.target.matches('input, textarea') && this.currentText && !this.saveToLibraryBtn.disabled) {
@@ -916,12 +925,31 @@ class TextLibrary {
         this.wordDetailContent.querySelectorAll('.word-link').forEach(el => {
             el.addEventListener('click', () => {
                 const linked = this.wordLibrary.find(w => w.id === el.dataset.id);
-                if (linked) this.showWordDetail(linked);
+                if (linked) this.showWordLinkModal(linked);
             });
         });
         this.wordDetail.classList.remove('hidden');
         // 用語詳細エリアまで自動スクロール
         this.wordDetail.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    showWordLinkModal(word) {
+        const explanationText = word.explanation || this.findWordExplanation(word.word);
+        this.wordLinkModalTitle.textContent = word.word;
+        this.wordLinkModalContent.innerHTML = `
+            <div class="word-context"><p>${this.renderExplanationWithLinks(explanationText, word.id)}</p></div>
+            <div class="word-meta">
+                <p>ソース: ${this.escapeHtml(word.sourceTitle || '不明')}</p>
+                <p>最終確認: ${this.formatDate(word.lastSeen)}</p>
+            </div>
+        `;
+        this.wordLinkModalContent.querySelectorAll('.word-link').forEach(el => {
+            el.addEventListener('click', () => {
+                const linked = this.wordLibrary.find(w => w.id === el.dataset.id);
+                if (linked) this.showWordLinkModal(linked);
+            });
+        });
+        this.wordLinkModal.classList.remove('hidden');
     }
 
     hideWordDetail() {
