@@ -593,6 +593,17 @@ body {
     line-height: 1.6;
 }
 
+.word-link {
+    color: #10b981;
+    cursor: pointer;
+    border-bottom: 1px dotted #10b981;
+    transition: opacity 0.15s;
+}
+
+.word-link:hover {
+    opacity: 0.65;
+}
+
 .library-item-actions {
     position: absolute;
     top: 1rem;

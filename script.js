@@ -875,16 +875,50 @@ class TextLibrary {
         return div;
     }
 
+    renderExplanationWithLinks(explanationText, currentWordId) {
+        // 現在表示中の用語以外を長い順にソート
+        const otherWords = this.wordLibrary
+            .filter(w => w.id !== currentWordId && w.word.trim())
+            .sort((a, b) => b.word.length - a.word.length);
+
+        // テキストをセグメント配列で管理し、順次用語を検出してリンク化
+        let segments = [{ text: explanationText, isLink: false, wordId: null }];
+        for (const w of otherWords) {
+            const newSegments = [];
+            for (const seg of segments) {
+                if (seg.isLink) { newSegments.push(seg); continue; }
+                const parts = seg.text.split(w.word);
+                parts.forEach((part, i) => {
+                    if (part) newSegments.push({ text: part, isLink: false });
+                    if (i < parts.length - 1) newSegments.push({ text: w.word, isLink: true, wordId: w.id });
+                });
+            }
+            segments = newSegments;
+        }
+
+        return segments.map(seg =>
+            seg.isLink
+                ? `<span class="word-link" data-id="${seg.wordId}">${this.escapeHtml(seg.text)}</span>`
+                : this.escapeHtml(seg.text)
+        ).join('');
+    }
+
     showWordDetail(word) {
         this.wordDetailTitle.textContent = word.word;
         const explanationText = word.explanation || this.findWordExplanation(word.word);
         this.wordDetailContent.innerHTML = `
-            <div class="word-context"><p>${this.escapeHtml(explanationText)}</p></div>
+            <div class="word-context"><p>${this.renderExplanationWithLinks(explanationText, word.id)}</p></div>
             <div class="word-meta">
                 <p>ソース: ${this.escapeHtml(word.sourceTitle || '不明')}</p>
                 <p>最終確認: ${this.formatDate(word.lastSeen)}</p>
             </div>
         `;
+        this.wordDetailContent.querySelectorAll('.word-link').forEach(el => {
+            el.addEventListener('click', () => {
+                const linked = this.wordLibrary.find(w => w.id === el.dataset.id);
+                if (linked) this.showWordDetail(linked);
+            });
+        });
         this.wordDetail.classList.remove('hidden');
         // 用語詳細エリアまで自動スクロール
         this.wordDetail.scrollIntoView({ behavior: 'smooth', block: 'center' });
