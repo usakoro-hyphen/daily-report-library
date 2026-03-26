@@ -838,6 +838,7 @@ class TextLibrary {
     }
 
     createTipsItem(tip) {
+        const preview = tip.content.length > 20 ? tip.content.slice(0, 20) + '…' : tip.content;
         const div = document.createElement('div');
         div.className = 'library-item tips-item';
         div.innerHTML = `
@@ -846,9 +847,15 @@ class TextLibrary {
                 <button class="delete-btn" data-id="${tip.id}">×</button>
             </div>
             <span class="tips-genre-badge">${this.escapeHtml(tip.genre || '未分類')}</span>
-            <p class="tips-content">${this.escapeHtml(tip.content)}</p>
+            <p class="tips-content">${this.escapeHtml(preview)}</p>
             <p class="library-item-date">ソース: ${this.escapeHtml(tip.sourceTitle || '不明')}</p>
         `;
+        div.addEventListener('click', (e) => {
+            if (e.target.classList.contains('delete-btn') || e.target.classList.contains('edit-btn')) return;
+            this.fileViewTitle.textContent = tip.genre || '未分類';
+            this.fileViewContent.innerHTML = `<p style="white-space:pre-wrap">${this.escapeHtml(tip.content)}</p>`;
+            this.fileViewModal.classList.remove('hidden');
+        });
         div.querySelector('.delete-btn').addEventListener('click', (e) => { e.stopPropagation(); this.deleteFromTipsLibrary(tip.id); });
         div.querySelector('.edit-btn').addEventListener('click', (e) => { e.stopPropagation(); this.editTipsItem(tip); });
         return div;
