@@ -547,6 +547,8 @@ class TextLibrary {
         this.fileInput = document.getElementById('fileInput');
         this.loadBtnInline = document.getElementById('loadBtnInline');
         this.cameraBtn = document.getElementById('cameraBtn');
+        this.imageFileBtn = document.getElementById('imageFileBtn');
+        this.imageFileInput = document.getElementById('imageFileInput');
 
         if (this.dropZone) {
             this.dropZone.addEventListener('dragover', (e) => this.handleDragOver(e));
@@ -562,6 +564,12 @@ class TextLibrary {
         }
         if (this.cameraBtn) {
             this.cameraBtn.addEventListener('click', () => this.openOcrModal());
+        }
+        if (this.imageFileBtn) {
+            this.imageFileBtn.addEventListener('click', () => this.imageFileInput.click());
+        }
+        if (this.imageFileInput) {
+            this.imageFileInput.addEventListener('change', (e) => this.handleImageFile(e));
         }
     }
 
