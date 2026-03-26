@@ -354,7 +354,7 @@ class TextLibrary {
         this.captureBtn.addEventListener('click', () => this.captureImage());
         this.retakeBtn.addEventListener('click', () => this.retakeImage());
         this.recognizeBtn.addEventListener('click', () => this.recognizeText());
-        this.imageFileBtn.addEventListener('click', () => this.imageFileInput.click());
+        this.imageFileBtn.addEventListener('click', () => { this.imageFileInput.value = ''; this.imageFileInput.click(); });
         this.imageFileInput.addEventListener('change', (e) => this.handleImageFile(e));
         this.editOcrBtn.addEventListener('click', () => this.editOcrText());
         this.saveOcrBtn.addEventListener('click', () => this.saveOcrText());
@@ -566,7 +566,7 @@ class TextLibrary {
             this.cameraBtn.addEventListener('click', () => this.openOcrModal());
         }
         if (this.imageFileBtn) {
-            this.imageFileBtn.addEventListener('click', () => this.imageFileInput.click());
+            this.imageFileBtn.addEventListener('click', () => { this.imageFileInput.value = ''; this.imageFileInput.click(); });
         }
         if (this.imageFileInput) {
             this.imageFileInput.addEventListener('change', (e) => this.handleImageFile(e));
@@ -1515,7 +1515,6 @@ class TextLibrary {
     handleImageFile(e) {
         const file = e.target.files[0];
         if (!file) return;
-        e.target.value = '';
         const reader = new FileReader();
         reader.onload = (ev) => {
             this.capturedImageData = ev.target.result;
