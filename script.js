@@ -661,15 +661,19 @@ class TextLibrary {
             await this.saveToWordLibrary(word, match[2], title, reading);
         }
 
-        // Tips抽出: {ジャンル}内容 の形式の行のみTipsとして保存
-        const lines = cleanText.split('\n').map(l => l.trim()).filter(l => l);
+        // Tips抽出: {ジャンル}で始まる行から次の{ジャンル}が来るまでを1つのTipsとして保存
+        const lines = cleanText.split('\n').map(l => l.trim());
+        let currentTip = null;
         for (const line of lines) {
-            const genreMatch = line.match(/^\{([^}]+)\}(.+)/);
-            if (!genreMatch) continue;
-            const genre = genreMatch[1].trim();
-            const content = genreMatch[2].trim();
-            if (content) await this.saveToTipsLibrary(content, genre, title);
+            const genreMatch = line.match(/^\{([^}]+)\}(.*)/);
+            if (genreMatch) {
+                if (currentTip) await this.saveToTipsLibrary(currentTip.content, currentTip.genre, title);
+                currentTip = { genre: genreMatch[1].trim(), content: genreMatch[2].trim() };
+            } else if (currentTip && line) {
+                currentTip.content += '\n' + line;
+            }
         }
+        if (currentTip) await this.saveToTipsLibrary(currentTip.content, currentTip.genre, title);
     }
 
     async saveToWordLibrary(word, delimiter, sourceTitle, reading = '') {
@@ -755,7 +759,8 @@ class TextLibrary {
     }
 
     async saveToTipsLibrary(content, genre, sourceTitle) {
-        const existing = this.tipsLibrary.find(t => t.content === content);
+        const normalize = s => s.replace(/\s+/g, '');
+        const existing = this.tipsLibrary.find(t => normalize(t.content) === normalize(content));
         if (existing) {
             try {
                 await setDoc(doc(db, 'tipsLibrary', existing.id), { ...existing, lastSeen: new Date().toISOString() });
