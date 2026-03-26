@@ -654,13 +654,13 @@ class TextLibrary {
             await this.saveToWordLibrary(word, match[2], title, reading);
         }
 
-        // Tips抽出: 用語区切り文字を含まない行をTipsとして保存
+        // Tips抽出: {ジャンル}内容 の形式の行のみTipsとして保存
         const lines = cleanText.split('\n').map(l => l.trim()).filter(l => l);
         for (const line of lines) {
-            if (/[…＝=]/.test(line)) continue;
             const genreMatch = line.match(/^\{([^}]+)\}(.+)/);
-            const genre = genreMatch ? genreMatch[1].trim() : '未分類';
-            const content = genreMatch ? genreMatch[2].trim() : line;
+            if (!genreMatch) continue;
+            const genre = genreMatch[1].trim();
+            const content = genreMatch[2].trim();
             if (content) await this.saveToTipsLibrary(content, genre, title);
         }
     }
