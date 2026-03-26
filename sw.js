@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nippo-library-20260319154157';
+const CACHE_NAME = 'nippo-library-20260326121409';
 
 const PRECACHE_URLS = [
     './',

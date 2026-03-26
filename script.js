@@ -809,8 +809,8 @@ class TextLibrary {
             this.wordCurrentPage = 1;
             this.gojuonFilter.querySelectorAll('.gojuon-btn').forEach(b => b.classList.toggle('active', b.dataset.row === 'all'));
         }
-        // 50音フィルター適用（readingがあればそちらの先頭文字で判定。おすすめは全用語対象）
-        if (this.activeGojuonRow && this.activeGojuonRow !== 'all' && this.activeGojuonRow !== 'recommend') {
+        // 50音フィルター適用（readingがあればそちらの先頭文字で判定。おすすめ・新着は全用語対象）
+        if (this.activeGojuonRow && this.activeGojuonRow !== 'all' && this.activeGojuonRow !== 'recommend' && this.activeGojuonRow !== 'new') {
             if (this.activeGojuonRow === 'alpha') {
                 filteredWords = filteredWords.filter(word => {
                     const ch = this.getFilterChar(word);
@@ -830,9 +830,9 @@ class TextLibrary {
             }
         }
         if (filteredWords.length === 0) {
-            const rowLabels = { 'alpha': 'A~Z', 'numsym': '数字/記号', 'recommend': 'おすすめ' };
+            const rowLabels = { 'alpha': 'A~Z', 'numsym': '数字/記号', 'recommend': 'おすすめ', 'new': '新着' };
             const label = rowLabels[this.activeGojuonRow] || `「${this.activeGojuonRow}」行`;
-            const msg = this.activeGojuonRow !== 'all' && this.activeGojuonRow !== 'recommend' ? `${label}の用語がありません` : 'ワードライブラリに用語がありません';
+            const msg = this.activeGojuonRow !== 'all' && this.activeGojuonRow !== 'recommend' && this.activeGojuonRow !== 'new' ? `${label}の用語がありません` : 'ワードライブラリに用語がありません';
             this.wordLibraryGrid.innerHTML = `<p class="placeholder">${msg}</p>`;
             return;
         }
@@ -844,9 +844,18 @@ class TextLibrary {
             return;
         }
 
+        // 新着: 最新のsourceTitleと一致する用語を全件表示
+        if (this.activeGojuonRow === 'new') {
+            const sorted = [...filteredWords].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            const latestTitle = sorted[0]?.sourceTitle;
+            filteredWords = latestTitle ? sorted.filter(w => w.sourceTitle === latestTitle) : [];
+        }
+
         // それ以外: ソート+ページネーション
         let displayWords = [...filteredWords];
-        displayWords.sort((a, b) => a.word.localeCompare(b.word, 'ja'));
+        if (this.activeGojuonRow !== 'new') {
+            displayWords.sort((a, b) => a.word.localeCompare(b.word, 'ja'));
+        }
 
         const totalPages = Math.ceil(displayWords.length / TextLibrary.WORDS_PER_PAGE);
         if (this.wordCurrentPage > totalPages) this.wordCurrentPage = totalPages;
