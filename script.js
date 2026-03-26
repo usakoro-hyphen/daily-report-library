@@ -1400,7 +1400,6 @@ class TextLibrary {
         this.cameraVideo.classList.remove('hidden');
         this.captureCanvas.classList.add('hidden');
         this.captureBtn.classList.remove('hidden');
-        this.imageFileBtn.classList.remove('hidden');
         this.retakeBtn.classList.add('hidden');
         this.recognizeBtn.classList.add('hidden');
         this.capturedImageData = null;
@@ -1490,6 +1489,13 @@ class TextLibrary {
         const reader = new FileReader();
         reader.onload = (ev) => {
             this.capturedImageData = ev.target.result;
+            // モーダルをカメラなしで開く
+            this.ocrModal.classList.remove('hidden');
+            this.cameraVideo.classList.add('hidden');
+            this.captureBtn.classList.add('hidden');
+            this.retakeBtn.classList.remove('hidden');
+            this.recognizeBtn.classList.remove('hidden');
+            // HEIC以外はキャンバスにプレビュー表示
             const mimeType = file.type || '';
             const isHeic = mimeType.includes('heic') || mimeType.includes('heif');
             if (!isHeic) {
@@ -1500,17 +1506,9 @@ class TextLibrary {
                     canvas.height = img.height;
                     canvas.getContext('2d').drawImage(img, 0, 0);
                     canvas.classList.remove('hidden');
-                    this.cameraVideo.classList.add('hidden');
                 };
                 img.src = ev.target.result;
-            } else {
-                this.cameraVideo.classList.add('hidden');
-                this.captureCanvas.classList.add('hidden');
             }
-            this.captureBtn.classList.add('hidden');
-            this.imageFileBtn.classList.add('hidden');
-            this.retakeBtn.classList.remove('hidden');
-            this.recognizeBtn.classList.remove('hidden');
         };
         reader.readAsDataURL(file);
     }

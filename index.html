@@ -102,6 +102,8 @@
                     </div>
                     <button id="loadBtnInline" class="btn primary">読み込み</button>
                     <button id="cameraBtn" class="btn secondary">📷 カメラで文字読み取り</button>
+                    <button id="imageFileBtn" class="btn secondary">📁 画像から読み取り</button>
+                    <input type="file" id="imageFileInput" accept="image/*,.heic,.heif" class="hidden">
                 </div>
             </div>
         </section>
@@ -119,8 +121,6 @@
                         <canvas id="captureCanvas" class="capture-canvas hidden"></canvas>
                         <div class="camera-controls">
                             <button id="captureBtn" class="btn primary">📸 撮影</button>
-                            <button id="imageFileBtn" class="btn secondary">📁 画像から読み取り</button>
-                            <input type="file" id="imageFileInput" accept="image/*,.heic,.heif" class="hidden">
                             <button id="retakeBtn" class="btn secondary hidden">🔄 撮り直し</button>
                             <button id="recognizeBtn" class="btn success hidden">🔍 文字認識</button>
                         </div>
