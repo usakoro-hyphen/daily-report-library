@@ -87,7 +87,9 @@ class GeminiOCR {
             throw new Error('Gemini APIキーが設定されていません。設定画面からAPIキーを入力してください。');
         }
 
-        const base64Image = await this.resizeImage(imageDataUrl);
+        const mimeType = imageDataUrl.match(/^data:([^;]+);/)?.[1] || 'image/jpeg';
+        const isHeic = mimeType === 'image/heic' || mimeType === 'image/heif';
+        const base64Image = isHeic ? imageDataUrl.split(',')[1] : await this.resizeImage(imageDataUrl);
         const url = `${this.API_BASE}/models/${this.MODEL}:generateContent?key=${apiKey}`;
 
         const requestBody = {
@@ -95,7 +97,7 @@ class GeminiOCR {
                 parts: [
                     {
                         inline_data: {
-                            mime_type: 'image/jpeg',
+                            mime_type: isHeic ? mimeType : 'image/jpeg',
                             data: base64Image
                         }
                     },
@@ -292,6 +294,9 @@ class TextLibrary {
         this.tipsSearch = document.getElementById('tipsSearch');
         this.tipsGenreFilter = document.getElementById('tipsGenreFilter');
         this.clearTipsLibraryBtn = document.getElementById('clearTipsLibraryBtn');
+
+        this.imageFileBtn = document.getElementById('imageFileBtn');
+        this.imageFileInput = document.getElementById('imageFileInput');
     }
 
     bindEvents() {
@@ -349,6 +354,8 @@ class TextLibrary {
         this.captureBtn.addEventListener('click', () => this.captureImage());
         this.retakeBtn.addEventListener('click', () => this.retakeImage());
         this.recognizeBtn.addEventListener('click', () => this.recognizeText());
+        this.imageFileBtn.addEventListener('click', () => this.imageFileInput.click());
+        this.imageFileInput.addEventListener('change', (e) => this.handleImageFile(e));
         this.editOcrBtn.addEventListener('click', () => this.editOcrText());
         this.saveOcrBtn.addEventListener('click', () => this.saveOcrText());
         this.cancelOcrBtn.addEventListener('click', () => this.closeOcrModal());
@@ -1393,6 +1400,7 @@ class TextLibrary {
         this.cameraVideo.classList.remove('hidden');
         this.captureCanvas.classList.add('hidden');
         this.captureBtn.classList.remove('hidden');
+        this.imageFileBtn.classList.remove('hidden');
         this.retakeBtn.classList.add('hidden');
         this.recognizeBtn.classList.add('hidden');
         this.capturedImageData = null;
@@ -1474,6 +1482,38 @@ class TextLibrary {
     }
 
     editOcrText() { this.ocrResultText.focus(); this.ocrResultText.select(); }
+
+    handleImageFile(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+        e.target.value = '';
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+            this.capturedImageData = ev.target.result;
+            const mimeType = file.type || '';
+            const isHeic = mimeType.includes('heic') || mimeType.includes('heif');
+            if (!isHeic) {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = this.captureCanvas;
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    canvas.getContext('2d').drawImage(img, 0, 0);
+                    canvas.classList.remove('hidden');
+                    this.cameraVideo.classList.add('hidden');
+                };
+                img.src = ev.target.result;
+            } else {
+                this.cameraVideo.classList.add('hidden');
+                this.captureCanvas.classList.add('hidden');
+            }
+            this.captureBtn.classList.add('hidden');
+            this.imageFileBtn.classList.add('hidden');
+            this.retakeBtn.classList.remove('hidden');
+            this.recognizeBtn.classList.remove('hidden');
+        };
+        reader.readAsDataURL(file);
+    }
 
     async saveOcrText() {
         const text = this.ocrResultText.value.trim();
