@@ -554,6 +554,45 @@ body {
     border-left: 4px solid #10b981;
 }
 
+.tips-item {
+    border-left: 4px solid #f59e0b;
+}
+
+.tips-genre-badge {
+    display: inline-block;
+    background: #fef3c7;
+    color: #92400e;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 12px;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
+
+.tips-content {
+    color: #374151;
+    line-height: 1.6;
+    margin: 0.25rem 0 0.5rem;
+    font-size: 0.95rem;
+}
+
+.genre-btn {
+    padding: 4px 12px;
+    border: 1px solid #d1d5db;
+    border-radius: 20px;
+    background: white;
+    cursor: pointer;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.genre-btn.active {
+    background: #f59e0b;
+    color: white;
+    border-color: #f59e0b;
+}
+
 .word-meta {
     font-size: 0.85rem;
     color: #9ca3af;

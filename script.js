@@ -185,6 +185,7 @@ class TextLibrary {
     // 設定値
     static WORDS_PER_PAGE = 3;
     static LIBRARY_PER_PAGE = 3;
+    static TIPS_PER_PAGE = 3;
     static RECOMMEND_COUNT = 3;
 
     constructor() {
@@ -192,6 +193,9 @@ class TextLibrary {
         this.currentTitle = '';
         this.library = [];
         this.wordLibrary = [];
+        this.tipsLibrary = [];
+        this.tipsCurrentPage = 1;
+        this.activeTipsGenre = 'all';
 
         this.cameraStream = null;
         this.capturedImageData = null;
@@ -283,6 +287,11 @@ class TextLibrary {
         this.wordLinkModalTitle = document.getElementById('wordLinkModalTitle');
         this.wordLinkModalContent = document.getElementById('wordLinkModalContent');
         this.closeWordLinkModalBtn = document.getElementById('closeWordLinkModal');
+
+        this.tipsGrid = document.getElementById('tipsGrid');
+        this.tipsSearch = document.getElementById('tipsSearch');
+        this.tipsGenreFilter = document.getElementById('tipsGenreFilter');
+        this.clearTipsLibraryBtn = document.getElementById('clearTipsLibraryBtn');
     }
 
     bindEvents() {
@@ -346,6 +355,7 @@ class TextLibrary {
 
         this.clearLibraryBtn.addEventListener('click', () => this.clearLibrary());
         this.clearWordLibraryBtn.addEventListener('click', () => this.clearWordLibrary());
+        this.clearTipsLibraryBtn.addEventListener('click', () => this.clearTipsLibrary());
         this.clearAllBtn.addEventListener('click', () => this.clearAll());
 
         this.wordSearch.addEventListener('input', () => this.searchWords());
@@ -366,6 +376,21 @@ class TextLibrary {
         this.gojuonFilter.querySelectorAll('.gojuon-btn').forEach(b => b.classList.toggle('active', b.dataset.row === 'recommend'));
 
         this.closeWordDetail.addEventListener('click', () => this.hideWordDetail());
+
+        this.tipsSearch.addEventListener('input', () => {
+            this.tipsCurrentPage = 1;
+            this.updateTipsDisplay(this.tipsSearch.value);
+        });
+        this.tipsGenreFilter.addEventListener('click', (e) => {
+            const btn = e.target.closest('.genre-btn');
+            if (!btn) return;
+            this.tipsGenreFilter.querySelectorAll('.genre-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            this.activeTipsGenre = btn.dataset.genre;
+            this.tipsCurrentPage = 1;
+            this.tipsSearch.value = '';
+            this.updateTipsDisplay();
+        });
     }
 
     // Firestoreリアルタイム同期
@@ -385,6 +410,14 @@ class TextLibrary {
             this.updateWordLibraryDisplay();
         }, (error) => {
             console.error('ワードライブラリ同期エラー:', error);
+        });
+
+        const tipsQuery = query(collection(db, 'tipsLibrary'), orderBy('createdAt', 'desc'));
+        onSnapshot(tipsQuery, (snapshot) => {
+            this.tipsLibrary = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+            this.updateTipsDisplay();
+        }, (error) => {
+            console.error('Tipsライブラリ同期エラー:', error);
         });
     }
 
@@ -598,7 +631,7 @@ class TextLibrary {
     }
 
     async extractAndSaveWordsFromText(text, title) {
-        const cleanText = text.replace(/===BLOCK_SEPARATOR===/g, ' ');
+        const cleanText = text.replace(/===BLOCK_SEPARATOR===/g, '\n');
         const termRegex = /([^…＝=\s]+)([…＝=])/g;
         const matches = [...cleanText.matchAll(termRegex)];
         const validMatches = matches.filter(m => m[1].trim().length > 0);
@@ -619,6 +652,16 @@ class TextLibrary {
             const word = match[1].trim();
             const reading = readings[word] || '';
             await this.saveToWordLibrary(word, match[2], title, reading);
+        }
+
+        // Tips抽出: 用語区切り文字を含まない行をTipsとして保存
+        const lines = cleanText.split('\n').map(l => l.trim()).filter(l => l);
+        for (const line of lines) {
+            if (/[…＝=]/.test(line)) continue;
+            const genreMatch = line.match(/^\{([^}]+)\}(.+)/);
+            const genre = genreMatch ? genreMatch[1].trim() : '未分類';
+            const content = genreMatch ? genreMatch[2].trim() : line;
+            if (content) await this.saveToTipsLibrary(content, genre, title);
         }
     }
 
@@ -685,13 +728,15 @@ class TextLibrary {
         const password = await this.promptPassword('すべてのデータを削除するにはパスワードを入力してください:');
         if (password === null) return;
         if (await hashPassword(password) !== PASSWORD_HASH) { this.showMessage('パスワードが正しくありません', 'error'); return; }
-        if (!confirm('本当にすべてのデータを削除しますか？\n・ワードライブラリ\n・テキストファイルライブラリ\n\nこの操作は元に戻せません。')) return;
+        if (!confirm('本当にすべてのデータを削除しますか？\n・ワードライブラリ\n・Tipsライブラリ\n・テキストファイルライブラリ\n\nこの操作は元に戻せません。')) return;
         try {
             const libSnapshot = await getDocs(collection(db, 'library'));
             const wordSnapshot = await getDocs(collection(db, 'wordLibrary'));
+            const tipsSnapshot = await getDocs(collection(db, 'tipsLibrary'));
             const deletePromises = [
                 ...libSnapshot.docs.map(d => deleteDoc(doc(db, 'library', d.id))),
-                ...wordSnapshot.docs.map(d => deleteDoc(doc(db, 'wordLibrary', d.id)))
+                ...wordSnapshot.docs.map(d => deleteDoc(doc(db, 'wordLibrary', d.id))),
+                ...tipsSnapshot.docs.map(d => deleteDoc(doc(db, 'tipsLibrary', d.id)))
             ];
             await Promise.all(deletePromises);
             this.clearContent();
@@ -699,6 +744,132 @@ class TextLibrary {
         } catch (error) {
             console.error('全削除エラー:', error);
             this.showMessage('削除に失敗しました', 'error');
+        }
+    }
+
+    async saveToTipsLibrary(content, genre, sourceTitle) {
+        const existing = this.tipsLibrary.find(t => t.content === content);
+        if (existing) {
+            try {
+                await setDoc(doc(db, 'tipsLibrary', existing.id), { ...existing, lastSeen: new Date().toISOString() });
+            } catch (error) { console.error('Tips更新エラー:', error); }
+        } else {
+            try {
+                await addDoc(collection(db, 'tipsLibrary'), {
+                    content, genre, sourceTitle,
+                    createdAt: new Date().toISOString(),
+                    lastSeen: new Date().toISOString()
+                });
+            } catch (error) { console.error('Tips保存エラー:', error); }
+        }
+    }
+
+    async deleteFromTipsLibrary(id) {
+        if (!confirm('本当にこのTipsを削除しますか？')) return;
+        try {
+            await deleteDoc(doc(db, 'tipsLibrary', id));
+            this.showMessage('Tipsを削除しました', 'info');
+        } catch (error) {
+            console.error('Tips削除エラー:', error);
+            this.showMessage('削除に失敗しました', 'error');
+        }
+    }
+
+    async clearTipsLibrary() {
+        const password = await this.promptPassword('Tipsライブラリをクリアするにはパスワードを入力してください:');
+        if (password === null) return;
+        if (await hashPassword(password) !== PASSWORD_HASH) { this.showMessage('パスワードが正しくありません', 'error'); return; }
+        if (!confirm('本当にTipsライブラリをクリアしますか？この操作は元に戻せません。')) return;
+        try {
+            const snapshot = await getDocs(collection(db, 'tipsLibrary'));
+            await Promise.all(snapshot.docs.map(d => deleteDoc(doc(db, 'tipsLibrary', d.id))));
+            this.showMessage('Tipsライブラリをクリアしました', 'info');
+        } catch (error) {
+            console.error('クリアエラー:', error);
+            this.showMessage('クリアに失敗しました', 'error');
+        }
+    }
+
+    updateTipsDisplay(searchTerm = '') {
+        this.tipsGrid.innerHTML = '';
+        document.getElementById('tipsPaginationContainer').innerHTML = '';
+
+        let filtered = this.tipsLibrary;
+        if (searchTerm.trim()) {
+            const term = searchTerm.toLowerCase();
+            filtered = filtered.filter(t => t.content.toLowerCase().includes(term) || (t.genre || '').toLowerCase().includes(term));
+            this.activeTipsGenre = 'all';
+            this.tipsCurrentPage = 1;
+            this.tipsGenreFilter.querySelectorAll('.genre-btn').forEach(b => b.classList.toggle('active', b.dataset.genre === 'all'));
+        }
+        if (this.activeTipsGenre !== 'all') {
+            filtered = filtered.filter(t => (t.genre || '未分類') === this.activeTipsGenre);
+        }
+
+        // ジャンルボタンを更新
+        const genres = [...new Set(this.tipsLibrary.map(t => t.genre || '未分類'))].sort();
+        const currentBtns = [...this.tipsGenreFilter.querySelectorAll('.genre-btn[data-genre]')].map(b => b.dataset.genre);
+        const allGenres = ['all', ...genres];
+        if (JSON.stringify(currentBtns) !== JSON.stringify(allGenres)) {
+            this.tipsGenreFilter.innerHTML = '';
+            allGenres.forEach(g => {
+                const btn = document.createElement('button');
+                btn.className = 'genre-btn' + (g === this.activeTipsGenre ? ' active' : '');
+                btn.dataset.genre = g;
+                btn.textContent = g === 'all' ? '全て' : g;
+                this.tipsGenreFilter.appendChild(btn);
+            });
+        }
+
+        if (filtered.length === 0) {
+            this.tipsGrid.innerHTML = '<p class="placeholder">Tipsがありません</p>';
+            return;
+        }
+
+        const totalPages = Math.ceil(filtered.length / TextLibrary.TIPS_PER_PAGE);
+        if (this.tipsCurrentPage > totalPages) this.tipsCurrentPage = totalPages;
+        const start = (this.tipsCurrentPage - 1) * TextLibrary.TIPS_PER_PAGE;
+        filtered.slice(start, start + TextLibrary.TIPS_PER_PAGE).forEach(tip => this.tipsGrid.appendChild(this.createTipsItem(tip)));
+
+        this.renderPagination('tipsPaginationContainer', totalPages, this.tipsCurrentPage, (page) => {
+            this.tipsCurrentPage = page;
+            this.updateTipsDisplay(this.tipsSearch.value);
+        });
+    }
+
+    createTipsItem(tip) {
+        const div = document.createElement('div');
+        div.className = 'library-item tips-item';
+        div.innerHTML = `
+            <div class="library-item-actions">
+                <button class="edit-btn" data-id="${tip.id}">✏️</button>
+                <button class="delete-btn" data-id="${tip.id}">×</button>
+            </div>
+            <span class="tips-genre-badge">${this.escapeHtml(tip.genre || '未分類')}</span>
+            <p class="tips-content">${this.escapeHtml(tip.content)}</p>
+            <p class="library-item-date">ソース: ${this.escapeHtml(tip.sourceTitle || '不明')}</p>
+        `;
+        div.querySelector('.delete-btn').addEventListener('click', (e) => { e.stopPropagation(); this.deleteFromTipsLibrary(tip.id); });
+        div.querySelector('.edit-btn').addEventListener('click', (e) => { e.stopPropagation(); this.editTipsItem(tip); });
+        return div;
+    }
+
+    async editTipsItem(tip) {
+        const newContent = prompt('内容を編集:', tip.content);
+        if (newContent === null || newContent.trim() === '') return;
+        const newGenre = prompt('ジャンルを編集:', tip.genre || '未分類');
+        if (newGenre === null) return;
+        try {
+            await setDoc(doc(db, 'tipsLibrary', tip.id), {
+                ...tip,
+                content: newContent.trim(),
+                genre: newGenre.trim() || '未分類',
+                lastSeen: new Date().toISOString()
+            });
+            this.showMessage('Tipsを更新しました', 'success');
+        } catch (error) {
+            console.error('Tips編集エラー:', error);
+            this.showMessage('更新に失敗しました', 'error');
         }
     }
 

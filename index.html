@@ -67,6 +67,7 @@
                     <span class="setting-label">一括削除</span>
                     <div class="danger-zone">
                         <button id="clearWordLibraryBtn" class="btn tiny danger">ワードライブラリを全て削除</button>
+                        <button id="clearTipsLibraryBtn" class="btn tiny danger">Tipsライブラリを全て削除</button>
                         <button id="clearLibraryBtn" class="btn tiny danger">テキストファイルライブラリを全て削除</button>
                         <button id="clearAllBtn" class="btn tiny danger">なにもかも削除</button>
                     </div>
@@ -248,6 +249,21 @@
                 </div>
                 <div id="wordDetailContent" class="word-detail-content"></div>
             </div>
+        </section>
+
+        <!-- Tipsライブラリエリア -->
+        <section id="tipsLibraryArea" class="library-area">
+            <div class="library-header">
+                <h2 class="library-title">Tipsライブラリ</h2>
+                <div class="library-controls">
+                    <input type="text" id="tipsSearch" class="search-box" placeholder="Tipsを検索...">
+                </div>
+            </div>
+            <div id="tipsGenreFilter" class="gojuon-filter">
+                <button class="genre-btn active" data-genre="all">全て</button>
+            </div>
+            <div id="tipsGrid" class="library-grid"></div>
+            <div id="tipsPaginationContainer"></div>
         </section>
 
         <!-- テキストファイルライブラリエリア -->
