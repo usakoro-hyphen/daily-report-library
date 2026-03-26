@@ -848,7 +848,10 @@ class TextLibrary {
         if (this.activeGojuonRow === 'new') {
             const latestFile = [...this.library].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
             const latestTitle = latestFile?.title;
+            console.log('[新着debug] library件数:', this.library.length, '最新タイトル:', latestTitle);
+            console.log('[新着debug] wordLibrary sourceTitle例:', this.wordLibrary.slice(0, 5).map(w => w.sourceTitle));
             filteredWords = latestTitle ? filteredWords.filter(w => w.sourceTitle === latestTitle) : [];
+            console.log('[新着debug] フィルター後件数:', filteredWords.length);
         }
 
         // それ以外: ソート+ページネーション
