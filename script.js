@@ -844,11 +844,11 @@ class TextLibrary {
             return;
         }
 
-        // 新着: 最新のsourceTitleと一致する用語を全件表示
+        // 新着: テキストファイルライブラリの最新ファイルに含まれる用語を全件表示
         if (this.activeGojuonRow === 'new') {
-            const sorted = [...filteredWords].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-            const latestTitle = sorted[0]?.sourceTitle;
-            filteredWords = latestTitle ? sorted.filter(w => w.sourceTitle === latestTitle) : [];
+            const latestFile = [...this.library].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+            const latestTitle = latestFile?.title;
+            filteredWords = latestTitle ? filteredWords.filter(w => w.sourceTitle === latestTitle) : [];
         }
 
         // それ以外: ソート+ページネーション
