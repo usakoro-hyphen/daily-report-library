@@ -1419,6 +1419,7 @@ class TextLibrary {
                 this.ocrResultText.value = filteredText.trim();
                 this.showOcrResult();
                 this.showOcrStatus('success', `文字認識完了！(Gemini ${result.model})`);
+                this.checkOcrSpaces();
             } else {
                 this.showOcrStatus('error', '文字が認識できませんでした。もう一度撮影してください。');
             }
@@ -1468,6 +1469,22 @@ class TextLibrary {
     }
 
     showOcrResult() { this.ocrResult.classList.remove('hidden'); this.ocrResultText.focus(); }
+
+    checkOcrSpaces() {
+        const existing = document.getElementById('ocrSpaceWarning');
+        if (existing) existing.remove();
+        const count = (this.ocrResultText.value.match(/ /g) || []).length;
+        if (count === 0) return;
+        const warning = document.createElement('div');
+        warning.id = 'ocrSpaceWarning';
+        warning.style.cssText = 'background:#fef9c3;border:1px solid #fbbf24;border-radius:6px;padding:6px 10px;font-size:0.85rem;color:#92400e;display:flex;align-items:center;gap:8px;margin-top:6px;';
+        warning.innerHTML = `⚠️ 半角スペースが${count}箇所含まれています <button id="removeSpacesBtn" style="background:#f59e0b;color:white;border:none;border-radius:4px;padding:2px 8px;cursor:pointer;font-size:0.8rem;">一括削除</button>`;
+        this.ocrResult.insertBefore(warning, this.ocrResult.querySelector('.ocr-actions'));
+        document.getElementById('removeSpacesBtn').addEventListener('click', () => {
+            this.ocrResultText.value = this.ocrResultText.value.replace(/ /g, '');
+            warning.remove();
+        });
+    }
 
     showOcrStatus(type, message) {
         const existingStatus = this.ocrModal.querySelector('.ocr-status');
@@ -1534,6 +1551,7 @@ class TextLibrary {
         this.ocrResultText.value = '';
         const statusMessages = this.ocrModal.querySelectorAll('.ocr-status');
         statusMessages.forEach(msg => msg.remove());
+        document.getElementById('ocrSpaceWarning')?.remove();
     }
 
     createPreview(text) {
