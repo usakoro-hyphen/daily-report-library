@@ -645,6 +645,17 @@ class TextLibrary {
         return /[\u4E00-\u9FFF]/.test(str);
     }
 
+    extractExplanationFromText(word, delimiter, text) {
+        const escapedWord = this.escapeRegex(word);
+        const escapedDelim = this.escapeRegex(delimiter);
+        const idx = text.search(new RegExp(escapedWord + escapedDelim));
+        if (idx === -1) return '';
+        const afterDelimiter = text.substring(idx + word.length + delimiter.length);
+        const endMatch = afterDelimiter.search(/\n{2,}|(?=\n\S+[…＝=])/);
+        const explanation = endMatch === -1 ? afterDelimiter : afterDelimiter.substring(0, endMatch);
+        return explanation.trim();
+    }
+
     async extractAndSaveWordsFromText(text, title) {
         const cleanText = text.replace(/===BLOCK_SEPARATOR===/g, '\n');
         const termRegex = /([^…＝=\s]+)([…＝=])/g;
@@ -663,10 +674,18 @@ class TextLibrary {
             readings = await GeminiOCR.getReadings(uniqueKanjiWords);
         }
 
+        const conflicts = [];
         for (const match of validMatches) {
             const word = match[1].trim();
+            const delimiter = match[2];
             const reading = readings[word] || '';
-            await this.saveToWordLibrary(word, match[2], title, reading);
+            const newExplanation = this.extractExplanationFromText(word, delimiter, cleanText);
+            const conflict = await this.saveToWordLibrary(word, delimiter, title, reading, newExplanation);
+            if (conflict) conflicts.push(conflict);
+        }
+
+        if (conflicts.length > 0) {
+            await this.showDuplicateConflictModal(conflicts, title);
         }
 
         // Tips抽出: {ジャンル}で始まる行から次の{ジャンル}が来るまでを1つのTipsとして保存
@@ -684,9 +703,16 @@ class TextLibrary {
         if (currentTip) await this.saveToTipsLibrary(currentTip.content, currentTip.genre, title);
     }
 
-    async saveToWordLibrary(word, delimiter, sourceTitle, reading = '') {
+    async saveToWordLibrary(word, delimiter, sourceTitle, reading = '', newExplanation = '') {
         const existingWord = this.wordLibrary.find(w => w.word === word);
         if (existingWord) {
+            const oldExplanation = existingWord.explanation || this.findWordExplanation(existingWord.word);
+            if (newExplanation && oldExplanation && oldExplanation !== '説明が見つかりませんでした。') {
+                const normalize = s => s.replace(/\s+/g, ' ').trim();
+                if (normalize(newExplanation) !== normalize(oldExplanation)) {
+                    return { existingWord, oldExplanation, newExplanation, newDelimiter: delimiter, newReading: reading, newSourceTitle: sourceTitle };
+                }
+            }
             try {
                 const updateData = {
                     ...existingWord,
@@ -708,11 +734,105 @@ class TextLibrary {
                     lastSeen: new Date().toISOString()
                 };
                 if (reading) wordData.reading = reading;
+                if (newExplanation) wordData.explanation = newExplanation;
                 await addDoc(collection(db, 'wordLibrary'), wordData);
             } catch (error) {
                 console.error('ワード保存エラー:', error);
             }
         }
+        return null;
+    }
+
+    showDuplicateConflictModal(conflicts, newSourceTitle) {
+        return new Promise((resolve) => {
+            const choices = new Map();
+            conflicts.forEach((_, i) => choices.set(i, 'old'));
+
+            const overlay = document.createElement('div');
+            overlay.className = 'dialog-overlay centered';
+            const modal = document.createElement('div');
+            modal.className = 'conflict-modal-box';
+
+            const itemsHtml = conflicts.map((c, i) => `
+                <div class="conflict-item" data-index="${i}">
+                    <div class="conflict-word-name">「${this.escapeHtml(c.existingWord.word)}」</div>
+                    <div class="conflict-label">現在の説明</div>
+                    <div class="conflict-explanation-block">${this.escapeHtml(c.oldExplanation)}</div>
+                    <div class="conflict-label">新しい説明（${this.escapeHtml(newSourceTitle)}）</div>
+                    <div class="conflict-explanation-block conflict-new">${this.escapeHtml(c.newExplanation)}</div>
+                    <div class="conflict-actions">
+                        <button class="conflict-btn selected-old" data-index="${i}" data-choice="old">現在を維持</button>
+                        <button class="conflict-btn" data-index="${i}" data-choice="new">新しい説明を使う</button>
+                    </div>
+                </div>
+            `).join('');
+
+            modal.innerHTML = `
+                <h3 style="margin:0 0 0.5rem;font-size:1rem;">用語の重複が検出されました（${conflicts.length}件）</h3>
+                <p style="font-size:0.82rem;color:#64748b;margin:0 0 1rem;">同名の用語が既に保存されています。それぞれ説明文をどちらにするか選択してください。</p>
+                ${itemsHtml}
+                <div class="conflict-footer">
+                    <button class="btn secondary conflict-all-old" style="font-size:0.82rem;">すべて現在を維持</button>
+                    <button class="btn secondary conflict-all-new" style="font-size:0.82rem;">すべて新しい説明に更新</button>
+                    <button class="btn primary conflict-confirm" style="font-size:0.82rem;">確定</button>
+                </div>
+            `;
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+
+            modal.addEventListener('click', async (e) => {
+                const choiceBtn = e.target.closest('.conflict-btn');
+                if (choiceBtn) {
+                    const idx = parseInt(choiceBtn.dataset.index);
+                    const choice = choiceBtn.dataset.choice;
+                    choices.set(idx, choice);
+                    const item = modal.querySelector(`.conflict-item[data-index="${idx}"]`);
+                    item.querySelectorAll('.conflict-btn').forEach(b => b.classList.remove('selected-old', 'selected-new'));
+                    choiceBtn.classList.add(choice === 'old' ? 'selected-old' : 'selected-new');
+                    return;
+                }
+                if (e.target.closest('.conflict-all-old')) {
+                    conflicts.forEach((_, i) => {
+                        choices.set(i, 'old');
+                        const item = modal.querySelector(`.conflict-item[data-index="${i}"]`);
+                        item.querySelectorAll('.conflict-btn').forEach(b => b.classList.remove('selected-old', 'selected-new'));
+                        item.querySelector('[data-choice="old"]').classList.add('selected-old');
+                    });
+                    return;
+                }
+                if (e.target.closest('.conflict-all-new')) {
+                    conflicts.forEach((_, i) => {
+                        choices.set(i, 'new');
+                        const item = modal.querySelector(`.conflict-item[data-index="${i}"]`);
+                        item.querySelectorAll('.conflict-btn').forEach(b => b.classList.remove('selected-old', 'selected-new'));
+                        item.querySelector('[data-choice="new"]').classList.add('selected-new');
+                    });
+                    return;
+                }
+                if (e.target.closest('.conflict-confirm')) {
+                    overlay.remove();
+                    for (const [i, choice] of choices) {
+                        const conflict = conflicts[i];
+                        try {
+                            const updateData = {
+                                ...conflict.existingWord,
+                                lastSeen: new Date().toISOString(),
+                                delimiters: [...new Set([...conflict.existingWord.delimiters, conflict.newDelimiter])]
+                            };
+                            if (conflict.newReading && !conflict.existingWord.reading) updateData.reading = conflict.newReading;
+                            if (choice === 'new') {
+                                updateData.explanation = conflict.newExplanation;
+                                updateData.sourceTitle = conflict.newSourceTitle;
+                            }
+                            await setDoc(doc(db, 'wordLibrary', conflict.existingWord.id), updateData);
+                        } catch (error) {
+                            console.error('ワード更新エラー:', error);
+                        }
+                    }
+                    resolve();
+                }
+            });
+        });
     }
 
     async deleteFromWordLibrary(id) {
