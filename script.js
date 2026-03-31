@@ -358,6 +358,11 @@ class TextLibrary {
                 if (!this.wordLinkModal.classList.contains('hidden')) { this.wordLinkModal.classList.add('hidden'); return; }
                 if (!this.fileViewModal.classList.contains('hidden')) { this.fileViewModal.classList.add('hidden'); return; }
             }
+            if (e.key === 'Enter' && !this.ocrModal.classList.contains('hidden') && !this.recognizeBtn.classList.contains('hidden') && !this.recognizeBtn.disabled) {
+                e.preventDefault();
+                this.recognizeText();
+                return;
+            }
             if (e.key === 'Enter' && !e.target.matches('input, textarea') && this.currentText && !this.saveToLibraryBtn.disabled) {
                 e.preventDefault();
                 this.saveToLibrary();
