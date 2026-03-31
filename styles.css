@@ -157,6 +157,18 @@ body {
     box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
 }
 
+.btn.success {
+    background: linear-gradient(135deg, #56ccf2, #2f80ed);
+    color: white;
+    box-shadow: 0 4px 15px rgba(86, 204, 242, 0.4);
+}
+
+.btn.success:hover {
+    background: linear-gradient(135deg, #2f80ed, #1e5ba8);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(86, 204, 242, 0.4);
+}
+
 .btn.danger {
     background: #ef4444;
     color: white;
