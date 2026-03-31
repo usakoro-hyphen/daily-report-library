@@ -214,6 +214,7 @@ class TextLibrary {
         this.loadBtnInline = document.getElementById('loadBtnInline');
         this.saveToLibraryBtn = document.getElementById('saveToLibraryBtn');
         this.clearBtn = document.getElementById('clearBtn');
+        this.backToEditBtn = document.getElementById('backToEditBtn');
         this.clearLibraryBtn = document.getElementById('clearLibraryBtn');
         this.clearWordLibraryBtn = document.getElementById('clearWordLibraryBtn');
         this.clearAllBtn = document.getElementById('clearAllBtn');
@@ -363,6 +364,7 @@ class TextLibrary {
             }
         });
         this.clearBtn.addEventListener('click', () => this.clearContent());
+        this.backToEditBtn.addEventListener('click', () => this.backToOcrEdit());
 
         this.cameraBtn.addEventListener('click', () => this.openOcrModal());
         this.closeOcrModalBtn.addEventListener('click', (e) => { e.stopPropagation(); this.closeOcrModal(); });
@@ -491,6 +493,8 @@ class TextLibrary {
             .trim();
         this.currentText = formattedText;
         this.currentTitle = filename;
+        this.lastOcrText = null;
+        this.backToEditBtn.classList.add('hidden');
         this.displayContent(true);
     }
 
@@ -563,6 +567,8 @@ class TextLibrary {
         this.textDisplay.innerHTML = this._initialPlaceholderHtml;
         this.disableContentActions();
         this.rebindPlaceholderElements();
+        this.lastOcrText = null;
+        this.backToEditBtn.classList.add('hidden');
         this.showMessage('コンテンツをクリアしました', 'info');
     }
 
@@ -1691,11 +1697,23 @@ class TextLibrary {
     async saveOcrText() {
         const text = this.ocrResultText.value.trim();
         if (!text) { this.showMessage('保存するテキストがありません', 'error'); return; }
+        this.lastOcrText = text;
         this.currentText = this.formatText(text);
         this.currentTitle = 'OCR読み取り ' + new Date().toLocaleString('ja-JP');
         this.displayContent(true);
         this.closeOcrModal();
+        this.backToEditBtn.classList.remove('hidden');
         this.showMessage('OCR結果を表示しました。ライブラリに保存できます。', 'success');
+    }
+
+    backToOcrEdit() {
+        this.ocrModal.classList.remove('hidden');
+        this.cameraVideo.classList.add('hidden');
+        this.captureBtn.classList.add('hidden');
+        this.retakeBtn.classList.add('hidden');
+        this.recognizeBtn.classList.add('hidden');
+        this.ocrResultText.value = this.lastOcrText || '';
+        this.showOcrResult();
     }
 
     resetOcrState() {
