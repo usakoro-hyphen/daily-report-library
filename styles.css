@@ -1452,3 +1452,222 @@ textarea.edit-modal-input {
         width: calc(100% - 2rem);
     }
 }
+
+/* ==================== フラッシュカード ==================== */
+
+.flashcard-standby {
+    padding: 1.5rem 0 0.5rem;
+}
+
+/* カード本体（3Dシーン） */
+.flashcard {
+    perspective: 1200px;
+    width: 100%;
+    max-width: 480px;
+    margin: 0 auto 1.25rem;
+    cursor: pointer;
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.flashcard-inner {
+    position: relative;
+    width: 100%;
+    min-height: 200px;
+    transition: transform 0.5s ease;
+    transform-style: preserve-3d;
+}
+
+.flashcard.flipped .flashcard-inner {
+    transform: rotateY(180deg);
+}
+
+.flashcard-front,
+.flashcard-back {
+    position: absolute;
+    width: 100%;
+    min-height: 200px;
+    padding: 2rem 1.5rem;
+    border-radius: 16px;
+    background: white;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+}
+
+.flashcard-back {
+    transform: rotateY(180deg);
+    background: linear-gradient(135deg, #f0f9ff, #e0f2fe);
+    text-align: left;
+    align-items: flex-start;
+}
+
+/* カード内コンテンツ */
+.flashcard-term {
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #1e293b;
+    margin-bottom: 0.4rem;
+    line-height: 1.3;
+}
+
+.flashcard-back .flashcard-term {
+    font-size: 1.1rem;
+    color: #475569;
+    margin-bottom: 0.75rem;
+}
+
+.flashcard-reading {
+    font-size: 0.9rem;
+    color: #64748b;
+    margin-bottom: 0.5rem;
+}
+
+.flashcard-hint {
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-top: 1rem;
+}
+
+.flashcard-explanation {
+    font-size: 0.95rem;
+    color: #334155;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* カードが非表示のとき高さ維持のためのスペーサー */
+.flashcard-inner::after {
+    content: '';
+    display: block;
+    min-height: 200px;
+    visibility: hidden;
+}
+
+/* プログレス */
+.flashcard-progress {
+    text-align: center;
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+    color: #64748b;
+    font-weight: 500;
+}
+
+/* 評価ボタンエリア */
+.flashcard-rating-area {
+    text-align: center;
+    margin-top: 0.25rem;
+}
+
+.flashcard-rating-label {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-bottom: 0.75rem;
+}
+
+.flashcard-rating-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.flashcard-rate-btn {
+    padding: 0.6rem 1.4rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.rate-hard {
+    background: #fee2e2;
+    color: #dc2626;
+}
+.rate-hard:hover {
+    background: #fca5a5;
+    transform: translateY(-1px);
+}
+
+.rate-normal {
+    background: #fef9c3;
+    color: #ca8a04;
+}
+.rate-normal:hover {
+    background: #fde68a;
+    transform: translateY(-1px);
+}
+
+.rate-easy {
+    background: #dcfce7;
+    color: #16a34a;
+}
+.rate-easy:hover {
+    background: #86efac;
+    transform: translateY(-1px);
+}
+
+/* 完了状態 */
+.flashcard-complete {
+    padding: 2rem 1rem;
+    text-align: center;
+}
+
+.flashcard-complete-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    font-size: 1.8rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1rem;
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.4);
+}
+
+.flashcard-complete-text {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #1e293b;
+    margin-bottom: 0.4rem;
+}
+
+.flashcard-complete-sub {
+    font-size: 0.85rem;
+    color: #64748b;
+    margin-bottom: 1.25rem;
+}
+
+/* カードなし状態 */
+.flashcard-empty {
+    padding: 2rem 1rem;
+    text-align: center;
+}
+
+.flashcard-empty-text {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #475569;
+    margin-bottom: 0.4rem;
+}
+
+.flashcard-empty-sub {
+    font-size: 0.85rem;
+    color: #94a3b8;
+    margin-bottom: 1.25rem;
+}
+
+/* セッションラッパー */
+.flashcard-session {
+    padding: 0.5rem 0;
+}

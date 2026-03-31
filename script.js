@@ -297,6 +297,22 @@ class TextLibrary {
 
         this.imageFileBtn = document.getElementById('imageFileBtn');
         this.imageFileInput = document.getElementById('imageFileInput');
+
+        // フラッシュカード
+        this.startFlashcardBtn = document.getElementById('startFlashcardBtn');
+        this.flashcardStandby = document.getElementById('flashcardStandby');
+        this.flashcardSessionEl = document.getElementById('flashcardSession');
+        this.flashcardCompleteEl = document.getElementById('flashcardComplete');
+        this.flashcardEmptyEl = document.getElementById('flashcardEmpty');
+        this.flashcardEl = document.getElementById('flashcard');
+        this.flashcardTerm = document.getElementById('flashcardTerm');
+        this.flashcardReading = document.getElementById('flashcardReading');
+        this.flashcardTermBack = document.getElementById('flashcardTermBack');
+        this.flashcardExplanation = document.getElementById('flashcardExplanation');
+        this.flashcardProgressText = document.getElementById('flashcardProgressText');
+        this.flashcardRatingArea = document.getElementById('flashcardRatingArea');
+        this.flashcardCompleteStats = document.getElementById('flashcardCompleteStats');
+        this.flashcardSession = null;
     }
 
     bindEvents() {
@@ -398,6 +414,16 @@ class TextLibrary {
             this.tipsSearch.value = '';
             this.updateTipsDisplay();
         });
+
+        // フラッシュカード
+        this.startFlashcardBtn.addEventListener('click', () => this.startFlashcardSession());
+        this.flashcardEl.addEventListener('click', () => this.flipCard());
+        this.flashcardEl.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.flipCard(); } });
+        document.getElementById('rateHard').addEventListener('click', () => this.rateCard(1));
+        document.getElementById('rateNormal').addEventListener('click', () => this.rateCard(3));
+        document.getElementById('rateEasy').addEventListener('click', () => this.rateCard(5));
+        document.getElementById('flashcardRestartBtn').addEventListener('click', () => this.startFlashcardSession());
+        document.getElementById('flashcardEmptyCloseBtn').addEventListener('click', () => this.resetFlashcardUI());
     }
 
     // Firestoreリアルタイム同期
@@ -1734,6 +1760,176 @@ class TextLibrary {
         messageEl.textContent = message;
         document.body.appendChild(messageEl);
         setTimeout(() => { messageEl.style.animation = 'slideOutRight 0.3s ease'; setTimeout(() => { if (messageEl.parentNode) messageEl.parentNode.removeChild(messageEl); }, 300); }, 3000);
+    }
+
+    // ==================== フラッシュカード ====================
+
+    startFlashcardSession() {
+        const today = new Date().toISOString().split('T')[0];
+        const NEW_CARDS_PER_SESSION = 10;
+        // セッション開始時点でワードライブラリをスナップショット（#6: リアルタイム同期の影響を受けない）
+        const snapshot = [...this.wordLibrary];
+
+        // 復習カード: 一度評価済みで今日が期日（#1: デフォルト値を明示処理）
+        const reviewCards = snapshot.filter(w => w.sm2_nextReview && w.sm2_nextReview <= today);
+        // 新規カード: まだ一度も評価していない → 1セッション最大10枚に制限
+        const newCards = snapshot
+            .filter(w => !w.sm2_nextReview)
+            .sort(() => 0.5 - Math.random())
+            .slice(0, NEW_CARDS_PER_SESSION);
+
+        const allDue = [...reviewCards, ...newCards];
+
+        if (allDue.length === 0) {
+            // (#3) カードなし状態を表示
+            this.flashcardStandby.classList.add('hidden');
+            this.flashcardSessionEl.classList.add('hidden');
+            this.flashcardCompleteEl.classList.add('hidden');
+            this.flashcardEmptyEl.classList.remove('hidden');
+            return;
+        }
+
+        // 全体をシャッフル
+        const queue = allDue.sort(() => 0.5 - Math.random());
+
+        this.flashcardSession = {
+            queue,
+            currentIndex: 0,
+            shownCounts: {},   // id -> 表示回数（#4: 再出題上限管理）
+            isFlipped: false,
+            stats: { hard: 0, normal: 0, easy: 0 },
+            newCount: newCards.length,
+            reviewCount: reviewCards.length
+        };
+
+        this.flashcardStandby.classList.add('hidden');
+        this.flashcardSessionEl.classList.remove('hidden');
+        this.flashcardCompleteEl.classList.add('hidden');
+        this.flashcardEmptyEl.classList.add('hidden');
+        this.showCurrentCard();
+    }
+
+    resetFlashcardUI() {
+        this.flashcardSession = null;
+        this.flashcardStandby.classList.remove('hidden');
+        this.flashcardSessionEl.classList.add('hidden');
+        this.flashcardCompleteEl.classList.add('hidden');
+        this.flashcardEmptyEl.classList.add('hidden');
+    }
+
+    showCurrentCard() {
+        const session = this.flashcardSession;
+        if (!session || session.currentIndex >= session.queue.length) {
+            this.endFlashcardSession();
+            return;
+        }
+
+        const card = session.queue[session.currentIndex];
+        const remaining = session.queue.length - session.currentIndex;
+        this.flashcardProgressText.textContent = `残り ${remaining} 枚`;
+
+        // 表面
+        this.flashcardTerm.textContent = card.word;
+        this.flashcardReading.textContent = card.reading || '';
+        // 裏面
+        this.flashcardTermBack.textContent = card.word;
+        const explanation = card.explanation || this.findWordExplanation(card.word);
+        this.flashcardExplanation.textContent = explanation;
+
+        // フリップリセット
+        session.isFlipped = false;
+        this.flashcardEl.classList.remove('flipped');
+        this.flashcardRatingArea.classList.add('hidden');
+    }
+
+    flipCard() {
+        const session = this.flashcardSession;
+        if (!session || session.isFlipped) return;
+        session.isFlipped = true;
+        this.flashcardEl.classList.add('flipped');
+        this.flashcardRatingArea.classList.remove('hidden');
+    }
+
+    async rateCard(rating) {
+        const session = this.flashcardSession;
+        if (!session || !session.isFlipped) return;
+
+        // ボタン連打防止
+        this.flashcardRatingArea.querySelectorAll('button').forEach(b => b.disabled = true);
+
+        const card = session.queue[session.currentIndex];
+
+        // 統計
+        if (rating === 1) session.stats.hard++;
+        else if (rating === 3) session.stats.normal++;
+        else session.stats.easy++;
+
+        // 表示回数を更新（#4: 再出題上限）
+        session.shownCounts[card.id] = (session.shownCounts[card.id] || 0) + 1;
+
+        // SM-2 計算して Firestore に保存（#1, #8）
+        const updates = this.calculateSM2Update(card, rating);
+        try {
+            await setDoc(doc(db, 'wordLibrary', card.id), { ...card, ...updates });
+        } catch (error) {
+            console.error('SM-2更新エラー:', error);
+        }
+
+        // 「難しい」かつ上限未満なら後方に再挿入（#4: MAX 3回まで）
+        const MAX_REQUEUE = 3;
+        if (rating === 1 && session.shownCounts[card.id] < MAX_REQUEUE) {
+            const insertAt = Math.min(session.currentIndex + 3, session.queue.length);
+            session.queue.splice(insertAt, 0, card);
+        }
+
+        session.currentIndex++;
+        this.flashcardRatingArea.querySelectorAll('button').forEach(b => b.disabled = false);
+        this.showCurrentCard();
+    }
+
+    calculateSM2Update(word, rating) {
+        // (#1) 既存フィールドがない場合はデフォルト値を使用
+        let interval = word.sm2_interval ?? 0;
+        let ease = word.sm2_ease ?? 2.5;
+        let repetitions = word.sm2_repetitions ?? 0;
+
+        if (rating < 3) {
+            // 難しい: リセット
+            repetitions = 0;
+            interval = 1;
+        } else {
+            if (repetitions === 0) interval = 1;
+            else if (repetitions === 1) interval = 6;
+            else interval = Math.round(interval * ease);
+            repetitions++;
+        }
+
+        // Ease Factor 更新（#8: 最低値 1.3 を強制）
+        ease = ease + (0.1 - (5 - rating) * (0.08 + (5 - rating) * 0.02));
+        ease = Math.max(1.3, Math.round(ease * 100) / 100);
+
+        const nextReviewDate = new Date();
+        nextReviewDate.setDate(nextReviewDate.getDate() + interval);
+        const sm2_nextReview = nextReviewDate.toISOString().split('T')[0];
+
+        return { sm2_interval: interval, sm2_ease: ease, sm2_repetitions: repetitions, sm2_nextReview };
+    }
+
+    endFlashcardSession() {
+        const session = this.flashcardSession;
+        const s = session?.stats || { hard: 0, normal: 0, easy: 0 };
+        const total = s.hard + s.normal + s.easy;
+        const breakdown = [];
+        if (session?.newCount) breakdown.push(`新規 ${session.newCount} 枚`);
+        if (session?.reviewCount) breakdown.push(`復習 ${session.reviewCount} 枚`);
+        this.flashcardCompleteStats.textContent =
+            `難しい: ${s.hard} / 普通: ${s.normal} / 簡単: ${s.easy}（${breakdown.join('・')}）`;
+
+        this.flashcardStandby.classList.add('hidden');
+        this.flashcardSessionEl.classList.add('hidden');
+        this.flashcardCompleteEl.classList.remove('hidden');
+        this.flashcardEmptyEl.classList.add('hidden');
+        this.flashcardSession = null;
     }
 }
 

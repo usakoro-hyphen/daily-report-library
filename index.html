@@ -214,6 +214,60 @@
             </div>
         </div>
 
+        <!-- フラッシュカードエリア -->
+        <section id="flashcardArea" class="library-area">
+            <div class="library-header">
+                <h2 class="library-title">フラッシュカード</h2>
+                <div class="library-controls">
+                    <button id="startFlashcardBtn" class="btn small primary">セッション開始</button>
+                </div>
+            </div>
+            <!-- 待機状態 -->
+            <div id="flashcardStandby" class="flashcard-standby">
+                <p class="placeholder">「セッション開始」を押すと、今日復習するカードが出題されます</p>
+            </div>
+            <!-- カード表示 -->
+            <div id="flashcardSession" class="flashcard-session hidden">
+                <div class="flashcard-progress">
+                    <span id="flashcardProgressText">残り 0 枚</span>
+                </div>
+                <div id="flashcard" class="flashcard" role="button" tabindex="0" aria-label="カードをタップして答えを見る">
+                    <div class="flashcard-inner">
+                        <div class="flashcard-front">
+                            <div class="flashcard-term" id="flashcardTerm"></div>
+                            <div class="flashcard-reading" id="flashcardReading"></div>
+                            <div class="flashcard-hint">タップして答えを見る</div>
+                        </div>
+                        <div class="flashcard-back">
+                            <div class="flashcard-term" id="flashcardTermBack"></div>
+                            <div class="flashcard-explanation" id="flashcardExplanation"></div>
+                        </div>
+                    </div>
+                </div>
+                <div id="flashcardRatingArea" class="flashcard-rating-area hidden">
+                    <p class="flashcard-rating-label">どれくらい覚えていましたか？</p>
+                    <div class="flashcard-rating-buttons">
+                        <button id="rateHard" class="btn flashcard-rate-btn rate-hard">難しい</button>
+                        <button id="rateNormal" class="btn flashcard-rate-btn rate-normal">普通</button>
+                        <button id="rateEasy" class="btn flashcard-rate-btn rate-easy">簡単</button>
+                    </div>
+                </div>
+            </div>
+            <!-- 完了状態 -->
+            <div id="flashcardComplete" class="flashcard-complete hidden">
+                <div class="flashcard-complete-icon">✓</div>
+                <p class="flashcard-complete-text">今日の復習が完了しました！</p>
+                <p class="flashcard-complete-sub" id="flashcardCompleteStats"></p>
+                <button id="flashcardRestartBtn" class="btn small secondary">もう一度</button>
+            </div>
+            <!-- カードなし状態 -->
+            <div id="flashcardEmpty" class="flashcard-empty hidden">
+                <p class="flashcard-empty-text">今日の復習カードはありません</p>
+                <p class="flashcard-empty-sub">新しい用語が追加されると次回から出題されます</p>
+                <button id="flashcardEmptyCloseBtn" class="btn small secondary">閉じる</button>
+            </div>
+        </section>
+
         <!-- ワードライブラリエリア -->
         <section id="wordLibraryArea" class="library-area">
             <div class="library-header">
