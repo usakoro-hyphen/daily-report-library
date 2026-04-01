@@ -358,7 +358,7 @@ class TextLibrary {
                 if (!this.wordLinkModal.classList.contains('hidden')) { this.wordLinkModal.classList.add('hidden'); return; }
                 if (!this.fileViewModal.classList.contains('hidden')) { this.fileViewModal.classList.add('hidden'); return; }
             }
-            if (e.key === 'Enter' && !this.ocrModal.classList.contains('hidden') && !this.recognizeBtn.classList.contains('hidden') && !this.recognizeBtn.disabled) {
+            if (e.key === 'Enter' && !this.ocrModal.classList.contains('hidden') && !this.recognizeBtn.classList.contains('hidden') && !this.recognizeBtn.disabled && this.ocrResult.classList.contains('hidden')) {
                 e.preventDefault();
                 this.recognizeText();
                 return;
