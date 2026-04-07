@@ -493,7 +493,7 @@ class TextLibrary {
             .replace(/\n{2,}/g, '\n\n\n')
             .replace(/([。！？])(?=\n)/g, '$1')
             .replace(/^([・•]\s*)/gm, '• ')
-            .replace(/^(\d+)\.?\s+(?![…＝=])/gm, '$1. ')
+            .replace(/^(\d+)\.?\s+(?![…])/gm, '$1. ')
             .replace(/\n{3,}/g, '\n\n===BLOCK_SEPARATOR===\n\n')
             .trim();
         this.currentText = formattedText;
@@ -510,7 +510,7 @@ class TextLibrary {
             if (block.trim()) {
                 let cleanBlock = block.trim().replace(/\n+/g, ' ').replace(/\s+/g, ' ');
                 cleanBlock = this.escapeHtml(cleanBlock);
-                cleanBlock = cleanBlock.replace(/([^…＝\s]+)([…＝=])/g, '<span class="term">$1</span>$2');
+                cleanBlock = cleanBlock.replace(/([^…\s]+)(…)/g, '<span class="term">$1</span>$2');
                 if (highlightTerm) {
                     const escaped = highlightTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
                     cleanBlock = cleanBlock.replace(new RegExp(`(${escaped})`, 'gi'), '<mark class="search-highlight">$1</mark>');
@@ -688,14 +688,14 @@ class TextLibrary {
         const idx = text.search(new RegExp(escapedWord + escapedDelim));
         if (idx === -1) return '';
         const afterDelimiter = text.substring(idx + word.length + delimiter.length);
-        const endMatch = afterDelimiter.search(/\n{2,}|(?=\n\S+[…＝=])/);
+        const endMatch = afterDelimiter.search(/\n{2,}|(?=\n\S+…)/);
         const explanation = endMatch === -1 ? afterDelimiter : afterDelimiter.substring(0, endMatch);
         return explanation.trim();
     }
 
     async extractAndSaveWordsFromText(text, title) {
         const cleanText = text.replace(/===BLOCK_SEPARATOR===/g, '\n');
-        const termRegex = /([^…＝=\s]+)([…＝=])/g;
+        const termRegex = /([^…\s]+)(…)/g;
         const matches = [...cleanText.matchAll(termRegex)];
         const validMatches = matches.filter(m => m[1].trim().length > 0);
 
@@ -1331,10 +1331,10 @@ class TextLibrary {
         if (!libraryItem) return '説明が見つかりませんでした。';
         const content = libraryItem.content || '';
         const escapedWord = this.escapeRegex(word);
-        const idx = content.search(new RegExp(`${escapedWord}[…＝=]`));
+        const idx = content.search(new RegExp(`${escapedWord}…`));
         if (idx === -1) return '説明が見つかりませんでした。';
-        const afterDelimiter = content.substring(idx).replace(new RegExp(`^${escapedWord}[…＝=]`), '');
-        const endMatch = afterDelimiter.search(/===BLOCK_SEPARATOR===|(?=\S+[…＝=])/);
+        const afterDelimiter = content.substring(idx).replace(new RegExp(`^${escapedWord}…`), '');
+        const endMatch = afterDelimiter.search(/===BLOCK_SEPARATOR===|(?=\S+…)/);
         const explanation = endMatch === -1 ? afterDelimiter : afterDelimiter.substring(0, endMatch);
         return explanation.trim() || '説明が見つかりませんでした。';
     }
@@ -1626,11 +1626,11 @@ class TextLibrary {
             .map(line => line.replace(/^[･・•·‧∙●◦◆■□▪▫]\s*/u, ''))
             .map(line => line.replace(/\.{2,}/g, '…'))
             .map(line => line.replace(/([…＝])\s+/g, '$1'));
-        // 用語行（…や＝を含む行）の前に空行がなければ挿入
+        // 用語行（…を含む行）の前に空行がなければ挿入
         const result = [];
         for (let i = 0; i < cleaned.length; i++) {
             const line = cleaned[i];
-            if (i > 0 && /[…＝=]/.test(line) && cleaned[i - 1].trim() !== '') {
+            if (i > 0 && line.includes('…') && cleaned[i - 1].trim() !== '') {
                 result.push('');
             }
             result.push(line);
