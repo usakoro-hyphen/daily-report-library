@@ -1676,6 +1676,7 @@ class TextLibrary {
         reader.onload = (ev) => {
             this.capturedImageData = ev.target.result;
             // モーダルをカメラなしで開く
+            document.getElementById('ocrModalTitle').textContent = '🖼️ 画像から読み取り';
             this.ocrModal.classList.remove('hidden');
             this.cameraVideo.classList.add('hidden');
             this.captureBtn.classList.add('hidden');
@@ -1733,6 +1734,7 @@ class TextLibrary {
         const statusMessages = this.ocrModal.querySelectorAll('.ocr-status');
         statusMessages.forEach(msg => msg.remove());
         document.getElementById('ocrSpaceWarning')?.remove();
+        document.getElementById('ocrModalTitle').textContent = '📷 カメラで文字読み取り';
     }
 
     createPreview(text) {
